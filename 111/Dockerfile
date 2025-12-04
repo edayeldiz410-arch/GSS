@@ -1,7 +1,9 @@
-# Base Python image
 FROM python:3.12-slim
 
-# Install system dependencies for mysqlclient and build tools
+# Create base directory
+WORKDIR /app
+
+# System dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -10,22 +12,16 @@ RUN apt-get update && \
         gcc && \
     rm -rf /var/lib/apt/lists/*
 
-# Create app directory
-WORKDIR /app
+# Copy ONLY requirements first
+COPY requirements.txt /app/
 
-# Install Python dependencies
-COPY 111/requirements.txt .
-RUN python -m venv /opt/venv && \
-    . /opt/venv/bin/activate && \
-    pip install --upgrade pip && \
-    pip install -r requirements.txt
+RUN pip install --no-cache-dir -r 111/requirements.txt
 
-# Copy project
-COPY . .
+# Copy everything INTO /app
+COPY . /app/
 
-# Expose port (Railway will set $PORT)
-ENV PATH="/opt/venv/bin:$PATH"
-ENV PYTHONUNBUFFERED=1
+# Set working directory to the Django project root
+WORKDIR /app/111/school
 
-# Start command (adjust path if manage.py is under 111/)
-CMD ["gunicorn", "school.wsgi", "--bind", "0.0.0.0:8080"]
+# Start Gunicorn from inside this folder
+CMD ["gunicorn", "school.wsgi:application", "--bind", "0.0.0.0:8080"]
