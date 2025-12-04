@@ -15,6 +15,6 @@
 
 [nixpacks.phases.run]
   cmds = [
-    'cd 111/school && python manage.py migrate',
+    'cd school && python manage.py migrate',
     'gunicorn school.wsgi --bind 0.0.0.0:$PORT'
   ]
