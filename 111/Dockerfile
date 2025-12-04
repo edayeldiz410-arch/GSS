@@ -14,7 +14,7 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY 111/requirements.txt .
 RUN python -m venv /opt/venv && \
     . /opt/venv/bin/activate && \
     pip install --upgrade pip && \
