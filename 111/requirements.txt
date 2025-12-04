@@ -1,0 +1,4 @@
+Django>=3.2
+reportlab>=4.0
+weasyprint>=58.0
+

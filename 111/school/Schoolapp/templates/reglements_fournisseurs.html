@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto p-6">
+  {% if db_error %}
+  <div class="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 rounded">
+    <strong>Base de données incomplète :</strong> {{ db_error }}
+    <div class="text-sm mt-2">Si vous venez d'ajouter cette fonctionnalité, exécutez les migrations :</div>
+    <div class="text-sm font-mono mt-2">py manage.py makemigrations Schoolapp; py manage.py migrate</div>
+  </div>
+  {% endif %}
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-semibold">Règlements des Fournisseurs</h1>
+    <div class="flex items-center gap-3">
+      <button id="btn-new-fournisseur" class="btn btn-primary">+ Fournisseur</button>
+      <button id="btn-new-achat" class="btn btn-outline">+ Achat</button>
+      <button id="btn-new-reglement" class="btn btn-ghost">+ Règlement</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-6">
+    <div class="col-span-1 bg-white shadow rounded p-4">
+      <h3 class="font-semibold mb-2">Fournisseurs</h3>
+      <ul id="fournisseurs-list" class="space-y-2 overflow-auto" style="max-height:520px">
+        {% for f in fournisseurs %}
+        <li class="p-2 border rounded hover:bg-gray-50 flex justify-between items-center">
+          <div>
+            <div class="text-sm font-medium">{{ f.nom|default:'' }}</div>
+            <div class="text-xs text-gray-500">{{ f.telephone|default:'' }} • {{ f.email|default:'' }}</div>
+          </div>
+          <div class="flex gap-2">
+            <button class="btn btn-sm btn-outline js-select-fournisseur" data-id="{{ f.id }}">Voir</button>
+          </div>
+        </li>
+        {% empty %}
+        <li class="text-gray-500">Aucun fournisseur</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="col-span-2 bg-white shadow rounded p-4">
+      <h3 class="font-semibold mb-2">Achats récents</h3>
+      <table class="w-full text-sm">
+        <thead class="text-xs text-gray-500 border-b">
+          <tr>
+            <th class="py-2">Ref</th>
+            <th>Fournisseur</th>
+            <th>Date</th>
+            <th class="text-right">Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="achats-list">
+          {% for a in achats %}
+          <tr class="border-b hover:bg-gray-50">
+            <td class="py-3">{{ a.reference }}</td>
+            <td>{{ a.fournisseur.nom }}</td>
+            <td>{{ a.date_achat }}</td>
+            <td class="text-right font-semibold">{{ a.total }} DZD</td>
+            <td class="text-right"><button class="btn btn-xs js-view-achat" data-id="{{ a.id }}">Détails</button></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-gray-500">Aucun achat</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h3 class="font-semibold mt-6 mb-2">Règlements récents</h3>
+      <table class="w-full text-sm">
+        <thead class="text-xs text-gray-500 border-b">
+          <tr>
+            <th>Ref</th>
+            <th>Fournisseur</th>
+            <th>Date</th>
+            <th class="text-right">Montant</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="reglements-list">
+          {% for r in reglements %}
+          <tr class="border-b hover:bg-gray-50">
+            <td>{{ r.reference }}</td>
+            <td>{{ r.fournisseur.nom }}</td>
+            <td>{{ r.date_reglement }}</td>
+            <td class="text-right font-semibold">{{ r.montant }} DZD</td>
+            <td class="text-right"><button class="btn btn-xs">Reçu</button></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-gray-500">Aucun règlement</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+
+  <!-- Simple modal placeholders -->
+  <div id="modal-root"></div>
+</div>
+
+<script>
+// Basic client-side hooks for creating fournisseurs/achats/reglements via the JSON endpoints.
+async function postJson(url, data){
+  const resp = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': getCookie('csrftoken')}, body: JSON.stringify(data)});
+  return resp.json();
+}
+function getCookie(name) { let v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)'); return v ? v[2] : null; }
+
+document.getElementById('btn-new-fournisseur').addEventListener('click', async ()=>{
+  const nom = prompt('Nom fournisseur:'); if(!nom) return;
+  const res = await postJson('/api/fournisseur/create/', {nom});
+  if(res.success) location.reload(); else alert('Erreur: '+(res.error||''));
+});
+
+document.getElementById('btn-new-achat').addEventListener('click', async ()=>{
+  const fournisseur = prompt('Fournisseur ID:'); if(!fournisseur) return;
+  const total = prompt('Total:','0');
+  const res = await postJson('/api/achat/create/', {fournisseur_id: fournisseur, total: total});
+  if(res.success) location.reload(); else alert('Erreur: '+(res.error||''));
+});
+
+document.getElementById('btn-new-reglement').addEventListener('click', async ()=>{
+  const fournisseur = prompt('Fournisseur ID:'); if(!fournisseur) return;
+  const montant = prompt('Montant:','0');
+  const res = await postJson('/api/reglement_fournisseur/create/', {fournisseur_id: fournisseur, montant});
+  if(res.success) location.reload(); else alert('Erreur: '+(res.error||''));
+});
+</script>
+
+{% endblock %}

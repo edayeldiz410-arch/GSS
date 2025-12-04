@@ -1,0 +1,17 @@
+2025-09-11T10:18:01.732144 - add_etudiant POST payload email=rayneera654@gmail.com nom=DirectTest prenom=ReqFactory
+2025-09-11T10:19:05.531178 - add_etudiant POST payload email=rayneera654@gmail.com nom=DirectTest prenom=ReqFactory
+2025-09-11T10:19:45.413797 - _safe_send: send_mail returned for rayneera654@gmail.com
+2025-09-11T10:21:16.407515 - edit_etudiant POST payload id=78 old_email=rayneera654@gmail.com new_email_field=vadire6@gmail.com
+2025-09-11T10:21:24.527302 - _safe_send: send_mail raised: [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée
+2025-09-11T10:21:27.096359 - edit_etudiant POST payload id=78 old_email=vadire6@gmail.com new_email_field=vadire7@gmail.com
+2025-09-11T10:21:28.615125 - _safe_send: smtplib fallback failed: [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée
+2025-09-11T10:21:35.208122 - _safe_send: send_mail raised: [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée
+2025-09-11T10:21:39.269903 - _safe_send: smtplib fallback failed: [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée
+2025-09-11T10:22:17.832711 - add_etudiant POST payload email=vadire17@gmail.com nom=BILLIE prenom=Jean
+2025-09-11T10:22:25.970873 - _safe_send: send_mail raised: [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée
+2025-09-11T10:22:30.023323 - _safe_send: smtplib fallback failed: [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée
+2025-09-11T10:28:41.928187 - edit_etudiant POST payload id=79 old_email=vadire17@gmail.com new_email_field=vadire7@gmail.com
+2025-09-11T10:28:50.020879 - _safe_send: send_mail raised: [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée
+2025-09-11T10:28:54.074053 - _safe_send: smtplib fallback failed: [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée
+2025-09-11T10:29:59.771918 - _safe_send: send_mail returned for rayneera654@gmail.com
+2025-09-11T10:36:18.867777 - edit_etudiant POST payload id=79 old_email=vadire7@gmail.com new_email_field=vadire7@gmail.com

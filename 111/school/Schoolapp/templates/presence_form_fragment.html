@@ -1,0 +1,287 @@
+{% load static %}
+<style>
+  /* modern modal styles */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(10,18,28,0.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:120;
+  }
+  .modal.card{border-radius:8px;box-shadow:0 8px 20px rgba(15,23,42,0.08);width:100%;max-width:640px;background:#ffffff;}
+  .modal .modal-close{background:transparent;border:none;font-size:18px;cursor:pointer;padding:6px 8px;border-radius:6px}
+  .modal .modal-close:hover{background:rgba(2,6,23,0.04)}
+
+  /* form layout improvements */
+  .modal .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;padding:6px}
+  .modal .grid > div{min-height:44px}
+  .modal .col-span-2{grid-column:1/-1}
+
+  /* inputs & selects - custom arrow so they don't 'collapse' visually */
+  .modal input[type="text"], .modal select, .modal textarea{width:100%;padding:10px 12px;border-radius:6px;border:1px solid #e9eef3;background:#fff;box-sizing:border-box;font-size:14px}
+  .modal select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:30px;background-image:linear-gradient(45deg, transparent 50%, #9aa4b2 50%),linear-gradient(135deg, #9aa4b2 50%, transparent 50%);background-position:calc(100% - 14px) calc(1em + 2px), calc(100% - 10px) calc(1em + 2px);background-size:6px 6px,6px 6px;background-repeat:no-repeat;}
+  .field-with-arrow{position:relative}
+  .field-with-arrow:after{content:'';position:absolute;right:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;opacity:0.7;pointer-events:none}
+
+  .modal label{display:block;margin-bottom:6px;font-weight:600;color:#0f1724}
+  .modal textarea{min-height:96px;resize:vertical}
+
+  /* preview styles */
+  #presenceStudentPreview img{width:64px;height:64px;border-radius:8px;display:block}
+  #presenceStudentPreview .font-semibold{margin-bottom:2px}
+
+  /* dropdown list */
+  #presenceStudentDropdown{box-shadow:0 12px 30px rgba(2,6,23,0.12);border-radius:8px}
+
+  /* actions */
+  .modal .actions{display:flex;gap:10px;justify-content:flex-end;align-items:center;padding:12px}
+  .btn-primary{background:var(--accent-2);color:#fff;border:none}
+  .btn-primary[disabled]{opacity:0.5;cursor:not-allowed}
+  .btn-secondary{background:transparent;border:1px solid transparent;color:#334155}
+
+  /* large floating preview */
+  #presenceLargePreview{border-radius:12px;overflow:hidden}
+
+  /* small responsive tweaks */
+  @media(max-width:640px){ .modal.card{max-width:520px} .modal .grid{grid-template-columns:1fr} }
+</style>
+
+<div class="modal-overlay">
+  <div class="modal card">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid #f1f5f9;">
+      <h2 style="margin:0;font-size:18px;font-weight:700;">{% if form.instance.pk %}Modifier présence{% else %}Ajouter présence (Pointeuse){% endif %}</h2>
+      <button class="modal-close" aria-label="Fermer">✕</button>
+    </div>
+    <form id="presenceForm" method="post" action="{% if form.instance.pk %}{% url 'presence_edit' form.instance.pk %}{% else %}{% url 'presence_add' %}{% endif %}">{% csrf_token %}
+      <div style="padding:18px;">
+      <div class="grid">
+        {% if not form.instance.pk %}
+        <div class="col-span-2">
+          <label>Code étudiant / Scanner</label>
+          <input id="pointeuseInput" type="text" placeholder="Scanner ou taper le code étudiant puis Entrée" autocomplete="off" style="padding:10px;border-radius:6px;border:1px solid #e9eef3;width:100%" />
+          <div id="pointeuseMsg" style="margin-top:8px;font-size:13px;color:#065f46;display:none"></div>
+        </div>
+        {% endif %}
+        <div>
+          <label>Étudiant</label>
+          <div class="relative field-with-arrow">
+            <input id="presenceStudentSearch" type="text" placeholder="Rechercher un étudiant..." class="" autocomplete="off" />
+            <input type="hidden" name="etudiant" id="presenceStudentSelect" value="{% if form.instance.etudiant %}{{ form.instance.etudiant.pk }}{% endif %}" />
+            <div id="presenceStudentDropdown" class="hidden bg-white mt-1 max-h-64 overflow-auto" style="position:absolute;left:0;right:0;z-index:160;"></div>
+          </div>
+          <div id="presenceStudentPreview" class="mt-3" style="display: none;">
+            <div style="display:flex;gap:12px;align-items:center">
+              <img id="presenceStudentPreviewImg" src="" alt="photo" />
+              <div>
+                <div id="presenceStudentPreviewName" class="font-semibold"></div>
+                <div id="presenceStudentPreviewMeta" style="font-size:13px;color:#667085"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label>Séance</label>
+          <div class="field-with-arrow">{{ form.calendar_event }}</div>
+          <div id="noSessionsMsg" style="display:none;margin-top:6px;color:#7f1d1d;background:#fff4f4;padding:8px;border-radius:6px;font-size:13px">Aucune séance programmée aujourd'hui</div>
+        </div>
+
+        <div>
+          <label>Statut</label>
+          <div>{{ form.statut }}</div>
+        </div>
+
+        <div class="col-span-2">
+          <label>Remarques</label>
+          <div>{{ form.remarques }}</div>
+        </div>
+      </div>
+      </div>
+
+      <div class="actions" style="border-top:1px solid #f1f5f9">
+        <button type="button" class="modal-close btn-secondary">Annuler</button>
+        <button id="presenceSaveBtn" type="submit" class="btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function(){
+    // helper to close modal consistently
+    function closeModal(){
+      var container = document.getElementById('modalContainer');
+      if(container){ container.innerHTML = ''; return; }
+      var overlay = document.querySelector('.modal-overlay');
+      if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+
+    // create a floating large preview element appended to body
+    var presenceLargePreview = document.createElement('div');
+    presenceLargePreview.id = 'presenceLargePreview';
+    presenceLargePreview.style.position = 'absolute';
+    presenceLargePreview.style.width = '180px';
+    presenceLargePreview.style.height = '220px';
+    presenceLargePreview.style.borderRadius = '12px';
+    presenceLargePreview.style.boxShadow = '0 20px 40px rgba(2,6,23,0.12)';
+    presenceLargePreview.style.overflow = 'hidden';
+    presenceLargePreview.style.background = '#fff';
+    presenceLargePreview.style.display = 'none';
+    presenceLargePreview.style.zIndex = 9999;
+    var presenceLargePreviewImg = document.createElement('img');
+    presenceLargePreviewImg.style.width = '100%';
+    presenceLargePreviewImg.style.height = '100%';
+    presenceLargePreviewImg.style.objectFit = 'cover';
+    presenceLargePreview.appendChild(presenceLargePreviewImg);
+    document.body.appendChild(presenceLargePreview);
+
+    // autocomplete search calling our API
+    function tryPrefixMedia(path){ if(!path) return ''; const p = String(path||''); if(p.startsWith('http') || p.startsWith('/')) return p; try{ return ("{{ MEDIA_URL|default:'' }}"||'') + p; }catch(e){ return p; } }
+    const searchInput = document.getElementById('presenceStudentSearch');
+    const hiddenSelect = document.getElementById('presenceStudentSelect');
+    const dropdown = document.getElementById('presenceStudentDropdown');
+    const preview = document.getElementById('presenceStudentPreview');
+    const previewImg = document.getElementById('presenceStudentPreviewImg');
+    const previewName = document.getElementById('presenceStudentPreviewName');
+    const previewMeta = document.getElementById('presenceStudentPreviewMeta');
+
+    function hideDropdown(){ if(dropdown) { dropdown.classList.add('hidden'); dropdown.innerHTML = ''; } }
+    function showDropdown(){ if(dropdown) dropdown.classList.remove('hidden'); }
+
+    let highlighted = -1;
+    function renderResult(r){
+      const div = document.createElement('div');
+      div.className = 'flex items-center gap-3 px-3 py-2 hover:bg-gray-100 cursor-pointer';
+      div.dataset.id = r.id;
+  const img = document.createElement('img'); img.src = tryPrefixMedia(r.photo) || '{% static "images/happy.gif" %}'; img.style.width='46px'; img.style.height='46px'; img.style.objectFit='cover'; img.style.borderRadius='50%';
+      const txt = document.createElement('div'); txt.innerHTML = `<div class="font-semibold">${r.prenom} ${r.nom}</div><div class="text-sm text-gray-500">#${r.id}</div>`;
+      div.appendChild(img); div.appendChild(txt);
+      // hover preview large
+      div.addEventListener('mouseenter', function(){
+        try{
+          previewImg.src = tryPrefixMedia(r.photo);
+          previewName.textContent = r.prenom + ' ' + r.nom;
+          previewMeta.textContent = '#'+r.id;
+          preview.style.display='flex';
+          presenceLargePreviewImg.src = tryPrefixMedia(r.photo) || '{% static "images/happy.gif" %}';
+          var rect = div.getBoundingClientRect();
+          var left = rect.right + 12 + window.scrollX;
+          var top = rect.top + window.scrollY - 10;
+          if(left + 180 > window.innerWidth) left = rect.left - 12 - 180 + window.scrollX;
+          if(top + 220 > window.scrollY + window.innerHeight) top = window.scrollY + window.innerHeight - 220 - 10;
+          presenceLargePreview.style.left = left + 'px';
+          presenceLargePreview.style.top = top + 'px';
+          presenceLargePreview.style.display = 'block';
+        }catch(e){ }
+      });
+      div.addEventListener('mouseleave', function(){
+        presenceLargePreview.style.display = 'none';
+        if(!hiddenSelect.value) preview.style.display = 'none';
+      });
+      div.addEventListener('click', function(){
+        hiddenSelect.value = r.id;
+        searchInput.value = r.prenom + ' ' + r.nom;
+        previewImg.src = '';
+        previewName.textContent = '';
+        previewMeta.textContent = '';
+        preview.style.display = 'none';
+        hideDropdown();
+        presenceLargePreview.style.display = 'none';
+      });
+      return div;
+    }
+
+    let debounce = null;
+    function doSearch(q){
+      if(debounce) clearTimeout(debounce);
+      debounce = setTimeout(()=>{
+        fetch('{% url "api_etudiants_search" %}?q=' + encodeURIComponent(q))
+          .then(r=>r.json()).then(data=>{
+            if(!dropdown) return;
+            dropdown.innerHTML = '';
+            if(!data.results || data.results.length===0){ hideDropdown(); return; }
+            data.results.forEach(item => dropdown.appendChild(renderResult(item)));
+            showDropdown();
+          }).catch(()=> hideDropdown());
+      }, 180);
+    }
+
+    if(searchInput){
+      searchInput.addEventListener('input', function(){ const q = this.value.trim(); if(!q){ doSearch(''); } else doSearch(q); });
+      searchInput.addEventListener('focus', function(){ const q = this.value.trim(); doSearch(q); });
+      document.addEventListener('click', function(e){ if(dropdown && !dropdown.contains(e.target) && e.target !== searchInput) { dropdown.classList.add('hidden'); } });
+    }
+
+    // UI niceties: modal close buttons + ESC to close + overlay click
+    var overlay = document.querySelector('.modal-overlay');
+    if(overlay){
+      overlay.addEventListener('click', function(e){ if(e.target === overlay) closeModal(); });
+    }
+    var closeBtns = document.querySelectorAll('.modal-close');
+    closeBtns.forEach(function(b){ b.addEventListener('click', function(){ closeModal(); }); });
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeModal(); });
+
+    // ensure session select has visible arrow and disable save if no sessions
+    const sessionSelect = document.querySelector('select[name="calendar_event"]');
+    const saveBtn = document.getElementById('presenceSaveBtn');
+    const noSessionsMsg = document.getElementById('noSessionsMsg');
+    function checkSessions(){
+      if(!sessionSelect) return;
+      const options = Array.from(sessionSelect.options).filter(o=> o.value && o.value.toString().trim() !== '');
+      if(options.length === 0){ if(noSessionsMsg) noSessionsMsg.style.display = 'block'; if(saveBtn) saveBtn.disabled = true; }
+      else { if(noSessionsMsg) noSessionsMsg.style.display = 'none'; if(saveBtn) saveBtn.disabled = false; }
+    }
+    checkSessions();
+    if(sessionSelect) sessionSelect.addEventListener('change', checkSessions);
+
+    // form submit via AJAX, return JSON handled by view
+    const form = document.getElementById('presenceForm');
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      const data = new FormData(form);
+      fetch(form.action, { method: form.method || 'POST', body: data, headers: {'X-Requested-With':'XMLHttpRequest'} })
+        .then(r=>{
+          const ct = r.headers.get('content-type') || '';
+          if(ct.indexOf('application/json') !== -1) return r.json();
+          return r.text();
+        })
+        .then(resp=>{
+          if(resp && typeof resp === 'object' && resp.ok){ location.reload(); }
+          else if(typeof resp === 'string'){ var container = document.getElementById('modalContainer'); if(container) container.innerHTML = resp; else document.body.insertAdjacentHTML('beforeend', resp); }
+          else { location.reload(); }
+        }).catch(()=> location.reload());
+    });
+    // Pointeuse behavior: when adding (no pk) the input will auto-submit a clock-in
+    {% if not form.instance.pk %}
+    (function(){
+      const pin = document.getElementById('pointeuseInput');
+      const msg = document.getElementById('pointeuseMsg');
+      function showMsg(t){ if(msg){ msg.style.display='block'; msg.textContent = t; } }
+      if(pin){
+        pin.addEventListener('keydown', function(e){
+          if(e.key === 'Enter'){
+            e.preventDefault();
+            const code = pin.value && pin.value.trim();
+            if(!code) return showMsg('Entrez un code');
+            showMsg('Enregistrement en cours...');
+            fetch('{% url "presence_clock_in" %}', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': (function(){ var m=document.cookie.match('(^|;) ?csrftoken=([^;]*)(;|$)'); return m?m[2]:'' })()
+              },
+              body: JSON.stringify({ code: code })
+            }).then(r=>r.json()).then(j=>{
+              if(j && j.ok){ 
+                showMsg(j.message || 'Présence enregistrée'); 
+                // ensure modal will reopen after reload (clear any 'closed' flag)
+                try{ sessionStorage.removeItem('presence_modal_closed'); }catch(e){}
+                setTimeout(()=> location.reload(), 700); 
+              }
+              else { showMsg('Erreur: ' + (j.error||'inconnu')); }
+            }).catch(err=>{ showMsg('Erreur réseau'); });
+          }
+        });
+        // autofocus so scanner can input immediately
+        setTimeout(()=>{ try{ pin.focus(); }catch(e){} }, 200);
+      }
+    })();
+    {% endif %}
+  })();
+</script>
