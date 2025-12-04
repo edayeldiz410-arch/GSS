@@ -24,4 +24,5 @@ COPY . /app/
 WORKDIR /app/111/school
 
 # Start Gunicorn from inside this folder
-CMD ["gunicorn", "school.wsgi:application", "--bind", "0.0.0.0:8080"]
+CMD ["gunicorn", "school.wsgi:application", "--bind", "0.0.0.0:8080", "--pythonpath", "/app/111/school"]
+
