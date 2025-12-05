@@ -28,4 +28,15 @@ ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
 # Start command (adjust path if manage.py is under 111/)
-CMD ["gunicorn", "school.wsgi", "--bind", "0.0.0.0:8080"]
+
+
+
+
+
+cd school
+CMD ["gunicorn", "school.school.wsgi", "--bind", "0.0.0.0:8080"]
+
+
+
+
+
