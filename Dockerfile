@@ -29,5 +29,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH="/app/111/school:$PYTHONPATH"
 
-# Start Django with gunicorn
-CMD ["gunicorn", "school.wsgi", "--chdir", "111/school", "--bind", "0.0.0.0:8080"]
+# Collect static files and start Django with gunicorn binding to the PORT env var
+RUN . /opt/venv/bin/activate && python /app/111/school/manage.py collectstatic --noinput || true
+
+# Use shell form so $PORT expands at runtime (Railway provides PORT)
+CMD gunicorn school.wsgi:application --chdir 111/school --bind 0.0.0.0:$PORT --workers 2
