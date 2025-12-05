@@ -59,16 +59,8 @@ try:
 	print('✓ Django WSGI application loaded successfully', flush=True)
 	
 	# Warm up database connection pool on first worker initialization
-	wsgi_logger.info("Warming up database connection pool...")
-	try:
-		from django.db import connection
-		connection.ensure_connection()
-		wsgi_logger.info("✓ Database connection pool warmed up")
-		print('✓ Database connection pool warmed up', flush=True)
-	except Exception as db_err:
-		wsgi_logger.warning(f"Warning: Could not warm up database connection: {db_err}")
-		print(f'Warning: Could not warm up database connection: {db_err}', flush=True)
-		# Don't fail startup - connection might be re-attempted on first request
+	# Skip this to avoid connection issues at startup - connections will be made on first request
+	wsgi_logger.info("Skipping database warmup - connections will be established on first request")
 except Exception as e:
 	wsgi_logger.error(f"✗ Failed to load Django: {e}", exc_info=True)
 	print(f'✗ Failed to load Django: {e}', flush=True)

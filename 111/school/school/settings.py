@@ -117,15 +117,13 @@ DATABASES = {
         'PASSWORD': get_env_var('MYSQLPASSWORD', 'MYSQL_ROOT_PASSWORD', 'DB_PASSWORD', default='sadZATFWlYForEocqRZKAWjZjtmGiEVX'),
         'HOST': get_env_var('MYSQLHOST', 'MYSQL_HOST', 'DB_HOST', default='mysql.railway.internal'),
         'PORT': get_env_var('MYSQLPORT', 'MYSQL_PORT', 'DB_PORT', default='3306'),
+        'CONN_MAX_AGE': 600,  # Connection pooling - at database level, not in OPTIONS
         'OPTIONS': {
             'charset': 'utf8mb4',
-            'conn_max_age': 600,  # Connection pooling
             'connect_timeout': 10,
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'autocommit': True,
-            # Disable connection verification on startup to avoid hanging
-            'check_same_thread': False,
-            'timeout': 10,
+            'read_timeout': 10,
+            'write_timeout': 10,
         },
     }
 }
