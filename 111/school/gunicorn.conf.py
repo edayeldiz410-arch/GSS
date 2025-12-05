@@ -48,7 +48,7 @@ limit_request_fields = 100
 limit_request_field_size = 8190
 
 # Forwarded allow IPS
-forwarded_allow_ips = ["127.0.0.1"]
+forwarded_allow_ips = "127.0.0.1"
 secure_scheme_headers = {
     "X-FORWARDED-PROTOCOL": "ssl",
     "X-FORWARDED-PROTO": "https",
