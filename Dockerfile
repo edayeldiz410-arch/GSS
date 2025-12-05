@@ -27,7 +27,7 @@ COPY . .
 # Environment
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH="/app/111/school:$PYTHONPATH"
+ENV PYTHONPATH="/app/111:$PYTHONPATH"
 
 # Copy startup script and make executable
 COPY start.sh /app/start.sh
