@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 import sys
 from pathlib import Path
 import os
+import traceback
 
 from django.core.wsgi import get_wsgi_application
 
@@ -41,6 +42,16 @@ try:
 	print('DEBUG: Schoolapp import OK', flush=True)
 except Exception as e:
 	print('DEBUG: Schoolapp import FAILED:', repr(e), flush=True)
+	traceback.print_exc()
 
-application = get_wsgi_application()
+# Initialize WSGI application with error handling
+try:
+	print('DEBUG: Initializing WSGI application...', flush=True)
+	application = get_wsgi_application()
+	print('DEBUG: WSGI application initialized successfully', flush=True)
+except Exception as e:
+	print(f'ERROR: Failed to initialize WSGI application: {e}', flush=True)
+	traceback.print_exc()
+	# Re-raise to let gunicorn see the error
+	raise
 
