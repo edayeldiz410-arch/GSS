@@ -15,7 +15,7 @@ RUN apt-get update && \
 # Copy ONLY requirements first
 COPY requirements.txt /app/
 
-RUN pip install --no-cache-dir -r 111/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy everything INTO /app
 COPY . /app/
@@ -24,6 +24,6 @@ COPY . /app/
 WORKDIR /app/111/school
 
 # Start Gunicorn from inside this folder
-CMD ["gunicorn", "111.school.wsgi", "--bind", "0.0.0.0:8080"]
+CMD ["gunicorn", "111.school.school.wsgi", "--bind", "0.0.0.0:8080"]
 
 
