@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.urls import path
 from Schoolapp import views
+from Schoolapp.health_views import health_check, status_view
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -12,6 +13,8 @@ from django.conf.urls.static import static
 
 
 urlpatterns = [
+    path('health/', health_check, name='health'),
+    path('status/', status_view, name='status'),
       path('admin/', admin.site.urls),
   # Show login page at root so opening the app lands on the login screen
   path('', views.login_view, name='home'),
