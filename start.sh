@@ -5,6 +5,7 @@ set -e
 . /opt/venv/bin/activate
 
 # Change to Django project dir
+export PYTHONPATH="/app/111:$PYTHONPATH"
 cd /app/111/school
 
 echo "Running migrations (if any)..."
