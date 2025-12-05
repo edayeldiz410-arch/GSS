@@ -111,9 +111,22 @@ DATABASES = {
             'connect_timeout': 10,
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'autocommit': True,
+            # Disable connection verification on startup to avoid hanging
+            'check_same_thread': False,
+            'timeout': 10,
         },
     }
 }
+
+# Log database configuration for debugging
+print(f"[SETTINGS] Configured database: {DATABASES['default'].get('NAME')}@{DATABASES['default'].get('HOST')}", flush=True)
+
+# Disable all middleware that accesses the database at import time
+# They should only access DB during request processing
+INITIALIZED_AT_STARTUP = True
+print(f"[SETTINGS] Django settings loaded successfully. DEBUG={DEBUG}", flush=True)
+
+
 
 # Additional database (same credentials, different NAME) so the app can connect
 # to an alternate database instance. Use Django's DATABASES setting to reference

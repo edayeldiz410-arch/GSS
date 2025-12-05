@@ -15,13 +15,19 @@ def current_user(request):
       - school_logo: URL path to logo (e.g. /media/... ) or ''
     """
     ctx = {'current_user': None, 'school_name': '', 'school_logo': ''}
+    
+    # Safely try to get user from session with timeout handling
     try:
         uid = request.session.get('user_id')
         if uid:
-            user = Utilisateur.objects.filter(id=uid).first()
-            ctx['current_user'] = user
+            try:
+                user = Utilisateur.objects.filter(id=uid).first()
+                ctx['current_user'] = user
+            except Exception as db_err:
+                logger.warning(f"[context_processors] Database error fetching user {uid}: {db_err}")
+                ctx['current_user'] = None
     except Exception as e:
-        logger.exception(f"[context_processors.current_user] Error fetching user from session: {e}")
+        logger.debug(f"[context_processors.current_user] Error accessing session: {e}")
         ctx['current_user'] = None
 
     # read persisted school info if present (non-blocking)
@@ -32,8 +38,10 @@ def current_user(request):
                 info = json.load(f)
                 ctx['school_name'] = info.get('name', '')
                 ctx['school_logo'] = info.get('logo', '')
+    except FileNotFoundError:
+        # keep defaults - file doesn't exist yet
+        pass
     except Exception as e:
-        # keep defaults
         logger.warning(f"[context_processors.current_user] Could not load school_info.json: {e}")
 
     return ctx
