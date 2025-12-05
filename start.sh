@@ -27,11 +27,21 @@ echo "To run migrations manually: python manage.py migrate"
 echo "Collecting static files (30s timeout)..."
 timeout 30 python manage.py collectstatic --noinput 2>&1 | tail -2 || echo "  (skipped)"
 
-# Get port from environment or default to 8080
-PORT=${PORT:-8080}
+# Get port from environment - Railway MUST provide this
+# If PORT is not set, Railway won't be able to route traffic correctly
+if [ -z "$PORT" ]; then
+  echo "ERROR: PORT environment variable is not set!"
+  echo "Railway should provide PORT automatically for web services."
+  echo "Falling back to 8080, but this may cause connection issues."
+  PORT=8080
+else
+  echo "✓ PORT environment variable found: ${PORT}"
+fi
 
 echo ""
-echo "Starting gunicorn on 0.0.0.0:${PORT}"
+echo "=== Starting Application ==="
+echo "Binding to: 0.0.0.0:${PORT}"
+echo "=============================="
 echo ""
 
 # Start gunicorn
