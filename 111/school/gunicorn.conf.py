@@ -4,8 +4,8 @@ Gunicorn configuration for Django application.
 import multiprocessing
 import os
 
-# Server socket
-bind = "0.0.0.0:8080"
+# Server socket - use PORT from environment (Railway provides this)
+bind = f"0.0.0.0:{os.environ.get('PORT', '8080')}"
 backlog = 2048
 
 # Worker processes

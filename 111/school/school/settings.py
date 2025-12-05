@@ -97,14 +97,15 @@ WSGI_APPLICATION = 'school.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Support both Railway (MYSQL*) and custom (DB_*) environment variable naming
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME', 'railway'),
-        'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'sadZATFWlYForEocqRZKAWjZjtmGiEVX'),
-        'HOST': os.environ.get('DB_HOST', 'mysql.railway.internal'),
-        'PORT': os.environ.get('DB_PORT', '3306'),
+        'NAME': os.environ.get('MYSQLDATABASE') or os.environ.get('MYSQL_DATABASE') or os.environ.get('DB_NAME', 'railway'),
+        'USER': os.environ.get('MYSQLUSER') or os.environ.get('MYSQL_USER') or os.environ.get('DB_USER', 'root'),
+        'PASSWORD': os.environ.get('MYSQLPASSWORD') or os.environ.get('MYSQL_ROOT_PASSWORD') or os.environ.get('DB_PASSWORD', 'sadZATFWlYForEocqRZKAWjZjtmGiEVX'),
+        'HOST': os.environ.get('MYSQLHOST') or os.environ.get('MYSQL_HOST') or os.environ.get('DB_HOST', 'mysql.railway.internal'),
+        'PORT': os.environ.get('MYSQLPORT') or os.environ.get('MYSQL_PORT') or os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {
             'charset': 'utf8mb4',
             'conn_max_age': 600,  # Connection pooling
