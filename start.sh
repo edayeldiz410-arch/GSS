@@ -28,21 +28,23 @@ echo "Collecting static files (30s timeout)..."
 timeout 30 python manage.py collectstatic --noinput 2>&1 | tail -2 || echo "  (skipped)"
 
 # Get port from environment - Railway MUST provide this for web services
-# If PORT is not set, Railway won't be able to route traffic
+# Railway may use different ports (8080, 9000, etc.) depending on configuration
+# Check for PORT, or fallback to common Railway ports
 if [ -z "$PORT" ]; then
   echo "=========================================="
-  echo "ERROR: PORT environment variable is not set!"
+  echo "WARNING: PORT environment variable is not set!"
   echo "=========================================="
   echo ""
-  echo "This usually means Railway hasn't detected this as a web service."
-  echo ""
-  echo "SOLUTION: In Railway dashboard:"
-  echo "1. Go to your service settings"
-  echo "2. Enable 'Public Networking' or set service type to 'Web Service'"
-  echo "3. Railway will then automatically provide the PORT variable"
-  echo ""
-  echo "For now, using default port 8080 (this may not work)"
-  PORT=8080
+  echo "Railway should provide PORT automatically for web services."
+  echo "Trying common Railway ports..."
+  # Try to detect from Railway's internal configuration
+  if [ -n "$RAILWAY_ENVIRONMENT" ]; then
+    echo "Railway environment detected, using port 9000 (Railway Metal Edge default)"
+    PORT=9000
+  else
+    echo "Using default port 8080"
+    PORT=8080
+  fi
 else
   echo "✓ PORT environment variable found: ${PORT}"
 fi
