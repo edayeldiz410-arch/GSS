@@ -29,4 +29,5 @@ ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
 # Start Django with gunicorn
-CMD ["gunicorn", "111.school.school.wsgi", "--bind", "0.0.0.0:8080"]
+CMD ["gunicorn", "school.wsgi", "--chdir", "111/school", "--bind", "0.0.0.0:8080"]
+
