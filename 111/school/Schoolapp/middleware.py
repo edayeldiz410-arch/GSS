@@ -10,15 +10,20 @@ class ActiveDBMiddleware(MiddlewareMixin):
     def process_request(self, request):
         name = None
         try:
-            name = request.session.get('active_db')
-        except Exception:
-            name = None
+            # Check if session is initialized before accessing
+            if hasattr(request, 'session') and request.session:
+                name = request.session.get('active_db')
+        except Exception as ex:
+            # Session might not exist or be readable
+            pass
+        
         # fallback to cookie if present
         if not name:
             try:
                 name = request.COOKIES.get('active_db')
             except Exception:
                 name = None
+        
         set_active_db(name)
 
     def process_response(self, request, response):
