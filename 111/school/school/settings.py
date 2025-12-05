@@ -99,13 +99,15 @@ WSGI_APPLICATION = 'school.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'railway',       # Nom de ta base
-        'USER': 'root',                 # Ton utilisateur MySQL
-        'PASSWORD': 'sadZATFWlYForEocqRZKAWjZjtmGiEVX',       # Ton mot de passe
-        'HOST': 'mysql.railway.internal',            # Ou l'adresse IP de ton serveur
-        'PORT': '3306',                  # Port MySQL par dÃ©faut
+        'NAME': os.environ.get('DB_NAME', 'railway'),
+        'USER': os.environ.get('DB_USER', 'root'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'sadZATFWlYForEocqRZKAWjZjtmGiEVX'),
+        'HOST': os.environ.get('DB_HOST', 'mysql.railway.internal'),
+        'PORT': os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {
             'charset': 'utf8mb4',
+            'conn_max_age': 600,  # Connection pooling
+            'connect_timeout': 10,
         },
     }
 }
@@ -114,17 +116,21 @@ DATABASES = {
 # to an alternate database instance. Use Django's DATABASES setting to reference
 # it as 'schooloctobre'. Switching at runtime requires either a DB router or
 # views that explicitly use django.db.connections['schooloctobre'].
-DATABASES['schooloctobre'] = {
-    'ENGINE': 'django.db.backends.mysql',
-    'NAME': 'bdlangue',      
-    'USER': 'root',
-    'PASSWORD': '',
-    'HOST': 'localhost',
-    'PORT': '3306',
-    'OPTIONS': {
-        'charset': 'utf8mb4',
-    },
-}
+# Only configure if environment variables are provided
+if os.environ.get('SECONDARY_DB_HOST'):
+    DATABASES['schooloctobre'] = {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('SECONDARY_DB_NAME', 'bdlangue'),      
+        'USER': os.environ.get('SECONDARY_DB_USER', 'root'),
+        'PASSWORD': os.environ.get('SECONDARY_DB_PASSWORD', ''),
+        'HOST': os.environ.get('SECONDARY_DB_HOST'),
+        'PORT': os.environ.get('SECONDARY_DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'conn_max_age': 600,
+            'connect_timeout': 10,
+        },
+    }
 
 
 # Password validation
