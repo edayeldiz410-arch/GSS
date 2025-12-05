@@ -32,7 +32,8 @@ if container_path not in sys.path:
 	except Exception:
 		pass
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'school.settings')
+# Force correct settings module (override Railway's incorrect value if set)
+os.environ['DJANGO_SETTINGS_MODULE'] = 'school.settings'
 
 # Simple health check WSGI app
 def health_app(environ, start_response):
@@ -56,6 +57,18 @@ try:
 	_django_app = get_wsgi_application()
 	wsgi_logger.info("✓ Django WSGI application loaded successfully")
 	print('✓ Django WSGI application loaded successfully', flush=True)
+	
+	# Warm up database connection pool on first worker initialization
+	wsgi_logger.info("Warming up database connection pool...")
+	try:
+		from django.db import connection
+		connection.ensure_connection()
+		wsgi_logger.info("✓ Database connection pool warmed up")
+		print('✓ Database connection pool warmed up', flush=True)
+	except Exception as db_err:
+		wsgi_logger.warning(f"Warning: Could not warm up database connection: {db_err}")
+		print(f'Warning: Could not warm up database connection: {db_err}', flush=True)
+		# Don't fail startup - connection might be re-attempted on first request
 except Exception as e:
 	wsgi_logger.error(f"✗ Failed to load Django: {e}", exc_info=True)
 	print(f'✗ Failed to load Django: {e}', flush=True)
