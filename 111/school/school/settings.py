@@ -59,9 +59,9 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    # ActiveDBMiddleware sets per-request DB alias (reads session/cookie)
-    'Schoolapp.middleware.ActiveDBMiddleware',
-    'Schoolapp.db_error_middleware.DatabaseErrorMiddleware',
+    # Temporarily disabled to debug
+    # 'Schoolapp.middleware.ActiveDBMiddleware',
+    # 'Schoolapp.db_error_middleware.DatabaseErrorMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
