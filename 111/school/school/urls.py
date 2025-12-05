@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.urls import path
 from Schoolapp import views
+from Schoolapp import test_views
 from Schoolapp.health_views import health_check, status_view
 from django.conf import settings
 from django.conf.urls.static import static
@@ -13,6 +14,9 @@ from django.conf.urls.static import static
 
 
 urlpatterns = [
+    path('_test/simple/', test_views.test_simple, name='test_simple'),
+    path('_test/template/', test_views.test_template, name='test_template'),
+    path('_test/db/', test_views.test_db, name='test_db'),
     path('health/', health_check, name='health'),
     path('status/', status_view, name='status'),
       path('admin/', admin.site.urls),
