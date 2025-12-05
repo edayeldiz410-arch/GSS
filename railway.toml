@@ -9,12 +9,11 @@
 
 [nixpacks.phases.build]
   cmds = [
-    'pip install -r requirements.txt',
-    'cd 111/school && python manage.py collectstatic --noinput'
+    'pip install -r 111/requirements.txt',
+    'cd 111/school && python manage.py collectstatic --noinput || true'
   ]
 
 [nixpacks.phases.run]
   cmds = [
-    'cd school && python manage.py migrate',
-    'gunicorn school.wsgi --bind 0.0.0.0:$PORT'
+    'bash start.sh'
   ]
