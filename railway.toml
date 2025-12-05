@@ -15,5 +15,5 @@
 
 [nixpacks.phases.run]
   cmds = [
-    'bash start.sh'
+    'bash 111/start.sh'
   ]
