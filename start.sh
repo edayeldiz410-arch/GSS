@@ -18,13 +18,14 @@ echo "Python: $(python --version 2>&1)"
 echo "Working directory: $(pwd)"
 echo ""
 
-# Try migrations but don't fail if timeout
-echo "Running migrations (30s timeout)..."
-timeout 30 python manage.py migrate --noinput 2>&1 | head -5 || echo "  (skipped - may not be ready)"
+# Skip migrations in startup - they can cause blocking issues
+# Users can run manually: python manage.py migrate
+echo "Note: Skipping migrations on startup (may already be applied)"
+echo "To run migrations manually: python manage.py migrate"
 
 # Try static files but don't fail if timeout
 echo "Collecting static files (30s timeout)..."
-timeout 30 python manage.py collectstatic --noinput 2>&1 | head -3 || echo "  (skipped)"
+timeout 30 python manage.py collectstatic --noinput 2>&1 | tail -2 || echo "  (skipped)"
 
 # Get port from environment or default to 8080
 PORT=${PORT:-8080}
