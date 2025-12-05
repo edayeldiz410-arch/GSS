@@ -98,7 +98,7 @@ WSGI_APPLICATION = 'school.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'bd_gss_2025',       # Nom de ta base
+        'NAME': 'railway',       # Nom de ta base
         'USER': 'root',                 # Ton utilisateur MySQL
         'PASSWORD': 'sadZATFWlYForEocqRZKAWjZjtmGiEVX',       # Ton mot de passe
         'HOST': 'mysql.railway.internal',            # Ou l'adresse IP de ton serveur
