@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 import os
 import traceback
+import json
 
 from django.core.wsgi import get_wsgi_application
 
@@ -45,13 +46,51 @@ except Exception as e:
 	traceback.print_exc()
 
 # Initialize WSGI application with error handling
+_app = None
+_app_error = None
+
 try:
 	print('DEBUG: Initializing WSGI application...', flush=True)
-	application = get_wsgi_application()
+	_app = get_wsgi_application()
 	print('DEBUG: WSGI application initialized successfully', flush=True)
 except Exception as e:
 	print(f'ERROR: Failed to initialize WSGI application: {e}', flush=True)
 	traceback.print_exc()
-	# Re-raise to let gunicorn see the error
-	raise
+	_app_error = str(e)
+
+
+def application(environ, start_response):
+	"""WSGI application that handles initialization errors gracefully."""
+	if _app_error:
+		# Return a 500 error with the error message
+		status = '500 Internal Server Error'
+		response_headers = [('Content-type', 'application/json')]
+		start_response(status, response_headers)
+		error_msg = json.dumps({
+			'error': 'Application initialization failed',
+			'message': _app_error,
+		}).encode('utf-8')
+		return [error_msg]
+	
+	if _app is None:
+		# Should not happen, but just in case
+		status = '500 Internal Server Error'
+		response_headers = [('Content-type', 'application/json')]
+		start_response(status, response_headers)
+		return [b'{"error": "Application not initialized"}']
+	
+	# Call the actual Django application
+	try:
+		return _app(environ, start_response)
+	except Exception as e:
+		print(f'ERROR in request handler: {e}', flush=True)
+		traceback.print_exc()
+		status = '500 Internal Server Error'
+		response_headers = [('Content-type', 'application/json')]
+		start_response(status, response_headers)
+		error_msg = json.dumps({
+			'error': 'Request processing failed',
+			'message': str(e),
+		}).encode('utf-8')
+		return [error_msg]
 
