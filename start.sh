@@ -1,25 +1,32 @@
 #!/bin/sh
 
-# Activate virtualenv
-. /opt/venv/bin/activate
+# Activate virtualenv if it exists (for Docker)
+if [ -f /opt/venv/bin/activate ]; then
+  . /opt/venv/bin/activate
+  echo "Virtual environment activated"
+fi
 
-# Change to Django project dir
+# Set Python path
 export PYTHONPATH="/app/111:$PYTHONPATH"
-cd /app/111/school
+export PYTHONUNBUFFERED=1
 
-echo "=== GenieSchool Startup ==="
+# Change to Django project directory
+cd /app/111/school || exit 1
+
+echo "=== GenieSchool Application Startup ==="
 echo "Python: $(python --version 2>&1)"
-echo "Working dir: $(pwd)"
+echo "Working directory: $(pwd)"
+echo ""
 
-# Try migrations but don't fail
-echo "Migrations..."
-timeout 30 python manage.py migrate --noinput 2>&1 | head -3 || echo "(skipped)"
+# Try migrations but don't fail if timeout
+echo "Running migrations (30s timeout)..."
+timeout 30 python manage.py migrate --noinput 2>&1 | head -5 || echo "  (skipped - may not be ready)"
 
-# Try static files but don't fail
-echo "Static files..."
-timeout 30 python manage.py collectstatic --noinput 2>&1 | head -2 || echo "(skipped)"
+# Try static files but don't fail if timeout
+echo "Collecting static files (30s timeout)..."
+timeout 30 python manage.py collectstatic --noinput 2>&1 | head -3 || echo "  (skipped)"
 
-# Set port
+# Get port from environment or default to 8080
 PORT=${PORT:-8080}
 
 echo ""
