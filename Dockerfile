@@ -33,8 +33,8 @@ ENV PYTHONUNBUFFERED=1
 
 
 
-cd school
-CMD ["gunicorn", "school.school.wsgi", "--bind", "0.0.0.0:8080"]
+CMD ["gunicorn", "111.school.wsgi", "--bind", "0.0.0.0:8080"]
+
 
 
 
