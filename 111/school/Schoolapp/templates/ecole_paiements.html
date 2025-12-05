@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Paiements Écoles{% endblock %}
+{% block content %}
+<style>
+  .school-list { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .school-card { padding:10px 14px; border-radius:10px; background:#fff; box-shadow:0 6px 18px rgba(2,6,23,0.04); border:1px solid rgba(0,0,0,0.04); cursor:pointer; }
+  .school-card.selected { outline:2px solid #7c3aed; }
+  .school-card .amount { font-weight:800; color:#0f172a; margin-top:6px; }
+  /* modern buttons for this page */
+  .btn-primary{ background: linear-gradient(90deg,#06b6d4,#7c3aed); color:#fff; padding:8px 12px; border-radius:8px; border:none; box-shadow:0 10px 28px rgba(124,58,237,0.08); cursor:pointer }
+  .btn-primary:active{ transform:translateY(1px) }
+  .btn-secondary{ background:transparent; color:#374151; padding:8px 12px; border-radius:8px; border:1px solid rgba(15,23,42,0.06); cursor:pointer }
+  /* Decorated export button */
+  .btn-export{ display:inline-flex; align-items:center; gap:10px; padding:10px 14px; border-radius:12px; background: linear-gradient(90deg,#4f46e5,#06b6d4); color:#fff; border:none; box-shadow: 0 12px 30px rgba(79,70,229,0.12); font-weight:700; }
+  .btn-export .icon-wrap{ display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; background:rgba(255,255,255,0.12); border-radius:8px; }
+  .btn-export:hover{ transform:translateY(-3px); box-shadow:0 18px 40px rgba(79,70,229,0.14); }
+  .btn-export .label{ display:inline-block; padding-right:6px }
+  .btn-export .pill{ background: rgba(255,255,255,0.16); padding:4px 8px; border-radius:999px; font-size:12px; font-weight:700 }
+  table.school-students { width:100%; border-collapse:collapse; }
+  table.school-students th, table.school-students td { padding:8px 10px; border-bottom:1px solid #eef2f6; }
+  .bulk-actions { margin-top:12px; display:flex; gap:8px; align-items:center; }
+</style>
+<main class="p-6">
+  <h1 class="text-2xl font-semibold mb-4">Frais par École</h1>
+  <div>
+    <div class="school-list">
+      {% for name, amount in ecoles_summary.items %}
+        <a href="?ecole={{ name|urlencode }}" class="school-card {% if selected_ecole == name %}selected{% endif %}">
+          <div style="font-weight:700">{{ name }}</div>
+          <div class="amount">{{ amount|floatformat:2 }} DA</div>
+        </a>
+      {% empty %}
+        <div>Aucune école trouvée.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if selected_ecole %}
+    <div style="display:flex;align-items:center;gap:12px;justify-content:space-between">
+      <h2 class="text-xl font-semibold mt-6">Étudiants - {{ selected_ecole }}</h2>
+      <div style="margin-left:12px">
+        <button id="exportEcolePdfBtn" type="button" class="btn-export" aria-label="Exporter la liste en PDF">
+          <span class="icon-wrap"><span class="material-icons" style="font-size:18px;">picture_as_pdf</span></span>
+          <span class="label">Exporter PDF</span>
+          <span class="pill" id="exportEcoleCount">{{ students|length }}</span>
+        </button>
+      </div>
+    </div>
+    <form id="bulkPaymentsForm">
+      <table class="school-students mt-4">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAll"/></th>
+            <th>Étudiant</th>
+            <th>Formation</th>
+            <th>Base (DA)</th>
+            <th>Consommables (DA)</th>
+            <th>Après déduction (DA)</th>
+            <th>Part école (DA)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in students %}
+            <tr>
+              <td><input type="checkbox" class="stu-checkbox" value="{{ s.inscription_id }}"/></td>
+              <td>{{ s.name }}</td>
+              <td>{{ s.formation }}</td>
+              <td>{{ s.base|floatformat:2 }}</td>
+              <td>{{ s.deducted|floatformat:2 }}</td>
+              <td>{{ s.remaining|floatformat:2 }}</td>
+              <td>{{ s.share|floatformat:2 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="bulk-actions">
+        <button type="button" id="createPaymentsBtn" class="btn-primary">Enregistrer paiements sélectionnés</button>
+        <button type="button" id="createAllBtn" class="btn-secondary">Sélectionner tout</button>
+        <div id="bulkResult" style="margin-left:12px;color:#065f46;font-weight:700"></div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+        <label style="font-weight:600">Versement total pour l'école (DA) :</label>
+        <input type="number" id="versementMontant" step="0.01" min="0" style="padding:6px 8px; border:1px solid #ddd; border-radius:6px; width:160px" />
+        <input type="text" id="versementNote" placeholder="Note (optionnelle)" style="padding:6px 8px; border:1px solid #ddd; border-radius:6px; width:240px" />
+        <button type="button" id="applyVersementBtn" class="btn-primary">Appliquer versement total</button>
+        <div id="versementResult" style="margin-left:12px;color:#065f46;font-weight:700"></div>
+      </div>
+      {% if versement_history %}
+      <div style="margin-top:14px;">
+        <h4 style="font-weight:700">Historique des versements (derniers)</h4>
+        <table style="width:100%; border-collapse:collapse; margin-top:8px;">
+          <thead><tr><th style="text-align:left; padding:6px; border-bottom:1px solid #eee">Date</th><th style="text-align:left; padding:6px; border-bottom:1px solid #eee">Montant total</th><th style="text-align:left; padding:6px; border-bottom:1px solid #eee">Paiements</th></tr></thead>
+          <tbody>
+            {% for v in versement_history %}
+              <tr>
+                <td style="padding:6px; border-bottom:1px solid #f3f4f6">{{ v.date_versement }}</td>
+                <td style="padding:6px; border-bottom:1px solid #f3f4f6">{{ v.montant_total|floatformat:2 }} DA</td>
+                <td style="padding:6px; border-bottom:1px solid #f3f4f6">{{ v.paiements_count }}</td>
+                <td style="padding:6px; border-bottom:1px solid #f3f4f6">
+                  <button type="button" class="btn-secondary" data-bid="{{ v.batch_id }}" onclick="viewBatch(event)">Voir</button>
+                  <button type="button" class="btn-secondary" data-bid="{{ v.batch_id }}" onclick="deleteBatch(event)">Supprimer</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </form>
+  {% else %}
+    <p class="text-sm text-gray-500 mt-4">Sélectionnez une école ci-dessus pour voir ses étudiants et enregistrer des paiements.</p>
+  {% endif %}
+</main>
+
+<script>
+function getCsrf(){
+  const name='csrftoken=';
+  const c = document.cookie.split(';').map(x=>x.trim()).find(x=>x.startsWith(name));
+  return c ? c.substring(name.length) : '';
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  const selectAll = document.getElementById('selectAll');
+  if(selectAll){
+    selectAll.addEventListener('change', function(){
+      document.querySelectorAll('.stu-checkbox').forEach(cb=>cb.checked = selectAll.checked);
+    });
+  }
+  const createBtn = document.getElementById('createPaymentsBtn');
+  if(createBtn){
+    createBtn.addEventListener('click', function(){
+      const ids = Array.from(document.querySelectorAll('.stu-checkbox:checked')).map(cb=>cb.value);
+      if(ids.length === 0){ alert('Sélectionnez au moins un étudiant'); return; }
+      if(!confirm('Créer les paiements pour '+ids.length+' étudiants ?')) return;
+      fetch('{% url "add_ecole_paiements_bulk" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrf(),
+        },
+        body: JSON.stringify({ inscription_ids: ids })
+      }).then(r=>r.json()).then(j=>{
+        if(j.success){
+          document.getElementById('bulkResult').textContent = 'OK: ' + (j.created ? j.created.length : 0) + ' paiements créés.';
+          setTimeout(()=>location.reload(), 900);
+        } else {
+          alert('Erreur: '+(j.error||'unknown'));
+        }
+      }).catch(e=>{ alert('Erreur réseau'); });
+    });
+  }
+  const exportBtn = document.getElementById('exportEcolePdfBtn');
+  if(exportBtn){
+    exportBtn.addEventListener('click', function(){
+      try{
+        const tbl = document.querySelector('table.school-students');
+        if(!tbl) return alert('Table non trouvée');
+        // clone header and visible rows
+        const clone = document.createElement('table');
+        clone.className = tbl.className || '';
+        const thead = tbl.querySelector('thead'); if(thead) clone.appendChild(thead.cloneNode(true));
+        const newTbody = document.createElement('tbody');
+        const originalRows = Array.from(tbl.querySelectorAll('tbody tr'));
+        originalRows.forEach(function(origRow){
+          try{
+            const cs = window.getComputedStyle(origRow);
+            if(cs && cs.display === 'none') return;
+          }catch(e){}
+          const clonedRow = origRow.cloneNode(true);
+          newTbody.appendChild(clonedRow);
+        });
+        clone.appendChild(newTbody);
+
+        // strip checkbox inputs and replace by serial number
+        // remove first column input and replace with sequence number
+        const bodyRows = Array.from(clone.querySelectorAll('tbody tr'));
+        bodyRows.forEach(function(r, idx){
+          // remove checkbox cell content and set index
+          const firstTd = r.querySelector('td');
+          if(firstTd){ firstTd.textContent = String(idx + 1); }
+          // ensure numeric columns are right-aligned
+          const tds = Array.from(r.querySelectorAll('td'));
+          for(let i=3;i<tds.length;i++){ tds[i].style.textAlign = 'right'; }
+        });
+
+        // remove interactive elements from clone
+        clone.querySelectorAll('button, a, input, select').forEach(n=>{ n.replaceWith(document.createTextNode(n.textContent || '')); });
+
+        // build printable container with header and count
+        const container = document.createElement('div');
+        container.style.padding = '12px'; container.style.boxSizing = 'border-box';
+        const header = document.createElement('div');
+        header.style.display = 'flex'; header.style.justifyContent = 'space-between'; header.style.alignItems = 'center'; header.style.marginBottom = '8px'; header.style.borderBottom = '1px solid #e5e7eb'; header.style.paddingBottom = '8px';
+        const title = document.createElement('div');
+        title.style.fontSize = '16px'; title.style.fontWeight = '700'; title.textContent = 'Liste des étudiants - {{ selected_ecole|default:""|escapejs }}';
+        const countDiv = document.createElement('div'); countDiv.style.fontWeight = '700'; countDiv.textContent = 'Total: ' + String(bodyRows.length);
+        header.appendChild(title); header.appendChild(countDiv);
+        container.appendChild(header);
+
+        // style clone for print
+        clone.style.width = '100%'; clone.style.boxSizing = 'border-box'; clone.style.fontSize = '12px';
+        clone.querySelectorAll('th, td').forEach(function(cell){ cell.style.padding = '6px'; cell.style.fontSize = '11px'; });
+
+        container.appendChild(clone);
+
+        // load html2pdf if needed and generate PDF (landscape)
+        function loadScript(src, cb){ const s = document.createElement('script'); s.src = src; s.onload = cb; s.onerror = cb; document.head.appendChild(s); }
+        function generate(){
+          const opt = { margin: 12, filename: ('ecole_{{ selected_ecole|default:"ecole"|escapejs }}_students.pdf'), image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 1, useCORS: true }, jsPDF: { unit: 'pt', format: 'a4', orientation: 'landscape' } };
+          try{
+            html2pdf().set(opt).from(container).save();
+          }catch(e){ console.error('pdf save error', e); alert('Erreur lors de la génération PDF'); }
+        }
+        if(typeof html2pdf === 'undefined'){
+          loadScript('{% static 'vendor/js/html2pdf.bundle.min.js' %}', function(){ setTimeout(generate, 250); });
+        } else { generate(); }
+      }catch(e){ console.error('export pdf error', e); alert('Erreur lors de l\'export PDF'); }
+    });
+  }
+  const createAll = document.getElementById('createAllBtn');
+  if(createAll){
+    createAll.addEventListener('click', function(){ document.querySelectorAll('.stu-checkbox').forEach(cb=>cb.checked=true); });
+  }
+  const applyVersementBtn = document.getElementById('applyVersementBtn');
+  if(applyVersementBtn){
+    applyVersementBtn.addEventListener('click', function(){
+      const montant = parseFloat(document.getElementById('versementMontant').value || 0);
+      const note = (document.getElementById('versementNote').value || '').trim();
+      if(!montant || montant <= 0){ alert('Entrez un montant total valide > 0'); return; }
+      const ecole = '{{ selected_ecole|escapejs }}';
+      if(!ecole){ alert('Aucune école sélectionnée'); return; }
+      if(!confirm('Appliquer un versement total de ' + montant + ' DA pour l\'école ' + ecole + ' ?')) return;
+      fetch('{% url "add_ecole_versement" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrf(),
+        },
+        body: JSON.stringify({ ecole: ecole, total_montant: montant, note: note })
+      }).then(r=>r.json()).then(j=>{
+        if(j.success){
+          document.getElementById('versementResult').textContent = 'OK: ' + (j.created ? j.created.length : 0) + ' paiements créés. Batch: ' + (j.batch_id || '');
+          // update school card remaining amount in-place for immediate feedback
+          try{
+            const encoded = encodeURIComponent(ecole);
+            const link = document.querySelector('.school-card[href="?ecole='+ecole+'"], .school-card[href="?ecole='+encoded+'"]') || Array.from(document.querySelectorAll('.school-card')).find(a=> a.getAttribute('href') && a.getAttribute('href').indexOf('?ecole=')!==-1 && decodeURIComponent(a.getAttribute('href').split('=')[1]||'')===ecole);
+            if(link){ const amtEl = link.querySelector('.amount'); if(amtEl){ const old = parseFloat(String(amtEl.textContent||'0').replace(/[^0-9\.,-]/g,'').replace(',','.')) || 0; const newVal = Math.max(0, old - montant); amtEl.textContent = newVal.toFixed(2) + ' DA'; amtEl.style.color = '#059669'; amtEl.style.fontWeight='800'; setTimeout(()=>{ amtEl.style.transition='all .6s ease'; amtEl.style.color=''; }, 2500); } }
+          }catch(e){/* ignore */}
+          setTimeout(()=>location.reload(), 900);
+        } else {
+          alert('Erreur: '+(j.error||'unknown'));
+        }
+      }).catch(e=>{ alert('Erreur réseau'); });
+    });
+  }
+});
+
+// Helper modal renderer for batch payments
+function makeModal(html){
+  // remove existing
+  const old = document.getElementById('batchModal'); if(old) old.remove();
+  const m = document.createElement('div');
+  m.id = 'batchModal';
+  m.style.position = 'fixed'; m.style.left='0'; m.style.top='0'; m.style.right='0'; m.style.bottom='0';
+  m.style.background='rgba(0,0,0,0.4)'; m.style.display='flex'; m.style.alignItems='center'; m.style.justifyContent='center';
+  m.innerHTML = `<div style="background:#fff; padding:18px; border-radius:10px; max-width:900px; width:95%; max-height:80%; overflow:auto">${html}<div style="text-align:right;margin-top:10px;"><button onclick="document.getElementById('batchModal') && document.getElementById('batchModal').remove()" class="btn-secondary">Fermer</button></div></div>`;
+  document.body.appendChild(m);
+}
+
+function viewBatch(e){
+  const bid = e.currentTarget.getAttribute('data-bid');
+  if(!bid) return alert('batch missing');
+  fetch('{% url "ecole_versement_detail" %}?batch_id='+encodeURIComponent(bid)).then(r=>r.json()).then(j=>{
+    if(!j.success) return alert('Erreur: '+(j.error||'unknown'));
+    const rows = j.paiements.map(p=>`<tr data-id="${p.id}"><td>${p.id}</td><td>${p.etudiant}</td><td><input class="edit-montant" value="${p.montant}" style="width:120px"/></td><td><input class="edit-date" value="${p.date_paiement||''}" style="width:140px"/></td><td>${p.remarques||''}</td><td><button class="btn-secondary" onclick="savePaiement(${p.id}, this)">Modifier</button> <button class="btn-secondary" onclick="delPaiement(${p.id}, this)">Supprimer</button></td></tr>`).join('');
+    const html = `<h3>Versement ${bid} — ${j.paiements.length} paiements</h3><table style="width:100%; border-collapse:collapse"><thead><tr><th>ID</th><th>Étudiant</th><th>Montant</th><th>Date</th><th>Remarques</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+    makeModal(html);
+  }).catch(()=>alert('Erreur réseau'));
+}
+
+function savePaiement(id, btn){
+  const tr = btn.closest('tr');
+  const montant = tr.querySelector('.edit-montant').value;
+  const date_paiement = tr.querySelector('.edit-date').value;
+  const data = new FormData();
+  data.append('id', id);
+  data.append('montant', montant);
+  data.append('date_paiement', date_paiement);
+  fetch('{% url "paiements_edit" %}', { method: 'POST', body: data, headers: {'X-CSRFToken': getCsrf()} }).then(r=>r.json()).then(j=>{
+    if(j.success){
+      btn.textContent = 'OK'; setTimeout(()=>btn.textContent='Modifier',900);
+    } else {
+      alert('Erreur: '+(j.error||'unknown'));
+    }
+  }).catch(()=>alert('Erreur réseau'));
+}
+
+function delPaiement(id, btn){
+  if(!confirm('Supprimer le paiement '+id+' ?')) return;
+  fetch('{% url "paiements_delete" %}', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRFToken':getCsrf()}, body: JSON.stringify({id:id}) }).then(r=>r.json()).then(j=>{
+    if(j.success){
+      const tr = btn.closest('tr'); if(tr) tr.remove();
+    } else { alert('Erreur: '+(j.error||'unknown')) }
+  }).catch(()=>alert('Erreur réseau'));
+}
+
+function deleteBatch(e){
+  const bid = e.currentTarget.getAttribute('data-bid'); if(!bid) return;
+  if(!confirm('Supprimer tous les paiements de ce versement (batch '+bid+') ?')) return;
+  fetch('{% url "ecole_versement_delete" %}', { method:'POST', headers: {'Content-Type':'application/json','X-CSRFToken':getCsrf()}, body: JSON.stringify({batch_id: bid}) }).then(r=>r.json()).then(j=>{
+    if(j.success){ alert('Supprimé: '+(j.deleted||0)+' paiements'); setTimeout(()=>location.reload(),500); } else { alert('Erreur: '+(j.error||'unknown')) }
+  }).catch(()=>alert('Erreur réseau'));
+}
+</script>
+
+{% endblock %}

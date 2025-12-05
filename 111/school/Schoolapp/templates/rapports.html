@@ -1,0 +1,1100 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Rapports - GénieSchool{% endblock %}
+{% block content %}
+  <style>
+    /* Modern, colorful, animated UI tweaks for Rapports page */
+    .card { padding: 1.75rem; border-radius: 1rem; min-height:180px; }
+    .card h3 { font-size: 1.15rem; font-weight: 800; display:flex; align-items:center; gap:1rem; }
+    .card .icon-circle { width:56px; height:56px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; color:white; }
+    .small-note { font-size: .95rem; color: #6b7280; }
+    .filter-row > * { min-width: 220px; }
+    .preview-table th, .preview-table td { padding: .6rem .75rem; border-bottom: 1px solid #eef2f7; }
+  /* Student results grid sizing and responsive columns */
+  #searchResults { margin-top:1rem; display:grid; grid-template-columns: repeat(1, minmax(0,1fr)); gap:1rem; }
+    @media(min-width:640px){ #searchResults { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media(min-width:1024px){ #searchResults { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+    /* Make results scrollable when many items (contained in section) */
+    section .results-scroll { max-height: 52vh; overflow-y: auto; padding-right:6px; }
+  /* Result cards should visually match the top cards (consistent height/layout) */
+  .result-card { padding:1.25rem; min-height:220px; border-radius:12px; background:#fff; box-shadow:0 10px 30px rgba(2,6,23,0.06); display:flex; flex-direction:column; align-items:flex-start; }
+  .result-card .font-semibold{ font-size:1rem; }
+  .result-card .text-xs { margin-top:6px; }
+  .result-card .object-cover { border-radius:8px; }
+
+  /* Payment date inputs visible and not collapsed */
+  .payment-date { min-width:140px; }
+  /* ensure the student search card fills the page container width */
+  .student-search-section { width:100%; }
+  .student-search-section .search-card { width:100%; display:block; }
+  .student-search-section .results-scroll { width:100%; }
+  /* visual inner card for the search input matching top cards */
+  .student-search-section .search-input-card { background: #ffffff; border-radius: 12px; padding: 16px; box-shadow: 0 6px 20px rgba(2,6,23,0.06); border:1px solid #eef2f7; }
+  .student-search-section .search-input-card .search-row { display:block; width:100%; }
+  .student-search-section .search-input-card input#rap_search { width:100%; }
+  /* wider input wrapper inside the container */
+  .student-search-section .search-wrapper-wide { width:100%; max-width:100%; display:block; }
+  .student-search-section .search-wrapper-wide .relative { width:100%; }
+  #rap_search { width:100%; }
+  /* make filter-row a responsive grid to avoid misalignment */
+  .filter-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: start; }
+
+    /* Accent gradients and subtle motion */
+    .accent-gradient { background: linear-gradient(90deg,#06b6d4,#16a34a); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .glow { box-shadow: 0 8px 32px rgba(16,185,129,0.08); }
+    .float-up { transform: translateY(0); transition: transform .28s cubic-bezier(.2,.9,.25,1), box-shadow .28s ease; }
+    .float-up:hover { transform: translateY(-8px); box-shadow: 0 18px 48px rgba(2,6,23,0.12); }
+
+    /* Animated attention pulse for icons */
+    @keyframes pulseAccent { 0% { transform: scale(1); opacity: .95 } 50% { transform: scale(1.06); opacity: 1 } 100% { transform: scale(1); opacity: .95 } }
+    .pulse { animation: pulseAccent 2.4s infinite; }
+
+    /* Search result cards */
+    .result-card { transition: transform .22s cubic-bezier(.2,.9,.25,1), box-shadow .22s ease; }
+    .result-card:hover { transform: translateY(-8px) scale(1.03); box-shadow: 0 18px 48px rgba(2,6,23,0.12); }
+
+  /* Staggered entry animation for results grid */
+  .stagger-item { opacity: 0; transform: translateY(12px) scale(.995); }
+  @keyframes staggerIn { from { opacity: 0; transform: translateY(12px) scale(.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .stagger-item.play { animation: staggerIn 420ms cubic-bezier(.2,.9,.25,1) forwards; }
+
+    /* Modal header accent */
+    .modal-accent { height:6px; border-radius:6px; background: linear-gradient(90deg,#06b6d4,#16a34a); margin-top:8px; }
+
+  /* Decorative avatars group */
+  .avatar-group { display:flex; gap:-8px; align-items:center; }
+  .avatar { width:36px; height:36px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center; color:white; font-weight:700; box-shadow:0 6px 18px rgba(2,6,23,0.08); border:2px solid white; }
+
+    /* Responsive tweaks */
+    @media(min-width:768px){
+      .card h3 { font-size:1.1rem; }
+    }
+  /* Make card inner form fields stack vertically like the 'inscriptions' card */
+  .card .p-4 .grid { grid-template-columns: 1fr !important; }
+  .card .p-4 .grid > div { width: 100%; }
+  </style>
+
+  <main class="space-y-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Student search placed at top to replace header (same container width) -->
+      <section class="bg-white rounded-2xl shadow p-6 student-search-section" style="margin-bottom:1.5rem;">
+        <div class="flex items-center justify-between w-full">
+          <h1 class="text-2xl font-extrabold tracking-tight">Rechercher un étudiant</h1>
+          <div class="ml-4 avatar-group hidden sm:flex">
+            <div class="avatar" style="background:#06b6d4">GS</div>
+            <div class="avatar" style="background:#7c3aed">HB</div>
+            <div class="avatar" style="background:#f97316">AD</div>
+          </div>
+        </div>
+        <div class="mt-4 search-input-card">
+          <div class="search-row">
+            <div class="search-wrapper-wide">
+              <div class="relative">
+                <input id="rap_search" type="search" placeholder="Rechercher par nom, id, téléphone..." class="rounded-md border px-4 py-3" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="results-scroll mt-4 w-full search-card">
+          <div id="searchResults" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Cards row -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- 1: Liste des étudiants -->
+      <div class="card bg-white rounded-xl shadow float-up">
+        <h3><span class="icon-circle bg-gradient-to-br from-sky-500 to-green-500 pulse"> <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M8 7V5a4 4 0 0 1 8 0v2"/></svg></span> Imprimer la liste des étudiants</h3>
+        <p class="small-note mt-1">Filtrer par date d'inscription, situation, statut puis Aperçu ou PDF.</p>
+            <div class="mt-4">
+          <div class="bg-white rounded-xl p-4 shadow-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-gray-500">Date d'inscription (de)</label>
+                <input id="etu_date_from" type="date" class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-gray-50" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">à</label>
+                <input id="etu_date_to" type="date" class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-gray-50" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Situation</label>
+                <select id="etu_situation" class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-white">
+                  <option value="">Toutes</option>
+                  <option value="etudiant">Étudiant</option>
+                  <option value="travail">Travail</option>
+                  <option value="autre">Autre</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Statut</label>
+                <select id="etu_statut" class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-white">
+                  <option value="">Tous</option>
+                  <option value="inscrit">Inscrit</option>
+                  <option value="non_inscrit">Non inscrit</option>
+                  <option value="verifie">Vérifié</option>
+                  <option value="non_verifie">Non vérifié</option>
+                </select>
+              </div>
+            </div>
+            <div class="mt-4 flex items-center gap-3 justify-end">
+              <button id="previewStudentsBtn" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl shadow">Aperçu</button>
+              <button id="pdfStudentsBtn" class="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl">Générer PDF</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2: Liste des inscriptions -->
+      <div class="card bg-white rounded-xl shadow float-up">
+        <h3><span class="icon-circle bg-gradient-to-br from-indigo-500 to-violet-500 pulse"> <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6M9 16h6M12 4v8"/></svg></span> Imprimer la liste des inscriptions</h3>
+        <p class="small-note mt-1">Filtrer par formation, groupe, date d'inscription, formateur.</p>
+        <div class="mt-4 space-y-3">
+          <div class="flex gap-3 filter-row">
+            <div>
+              <label class="text-xs">Formation</label>
+              <select id="ins_formation" class="w-full rounded-md border px-3 py-2">
+                <option value="">Toutes</option>
+                {% for f in formations %}
+                <option value="{{ f.id }}">{{ f.nom }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">Chercher formation</label>
+              <input id="searchFormation" type="text" placeholder="Tapez pour filtrer..." class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-white" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">Groupe</label>
+              <select id="ins_groupe" class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-white">
+                <option value="">Tous</option>
+                {% for g in groupes %}
+                <option value="{{ g }}">{{ g }}</option>
+                {% endfor %}
+              </select>
+            </div>
+              <div>
+                <label class="text-xs text-gray-500">Date d'inscription</label>
+                <input id="ins_date" type="date" class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-gray-50" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Formateur</label>
+                <select id="ins_formateur" class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-white">
+                  <option value="">Tous</option>
+                  {% for t in formateurs %}
+                  <option value="{{ t.id }}">{{ t.nom }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+          </div>
+          <div class="mt-4 flex items-center gap-3 justify-end">
+            <button id="previewInsBtn" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl shadow">Aperçu</button>
+            <button id="pdfInsBtn" class="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl">Générer PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3: Impression paiements -->
+      <div class="card bg-white rounded-xl shadow float-up">
+        <h3><span class="icon-circle bg-gradient-to-br from-rose-500 to-orange-400 pulse"> <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2"/></svg></span> Paiements (étudiants)</h3>
+        <p class="small-note mt-1">Filtrer par date, somme minimale/maximale, formation.</p>
+        <div class="mt-4">
+          <div class="bg-white rounded-xl p-4 shadow-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label class="text-xs text-gray-500">Date (de)</label>
+                <input id="pay_date_from" type="date" class="payment-date rounded-lg border border-gray-200 px-3 py-2 bg-gray-50" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">à</label>
+                <input id="pay_date_to" type="date" class="payment-date rounded-lg border border-gray-200 px-3 py-2 bg-gray-50" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Somme min</label>
+                <input id="pay_min" type="number" class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-white" placeholder="0" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Somme max</label>
+                <input id="pay_max" type="number" class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-white" placeholder="0" />
+              </div>
+            </div>
+            <div class="mt-4 flex items-end gap-3">
+              <div style="min-width:220px;">
+                <label class="text-xs text-gray-500">Formation</label>
+                <select id="pay_formation" class="w-full rounded-lg border border-gray-200 px-3 py-2 bg-white">
+                  <option value="">Toutes</option>
+                  {% for f in formations %}
+                  <option value="{{ f.id }}">{{ f.nom }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="flex-1" />
+              <div>
+                <button id="previewPayBtn" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl shadow">Aperçu</button>
+                <button id="pdfPayBtn" class="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl">Générer PDF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  
+
+    <!-- Preview modal (hidden) -->
+  <div id="previewModal" class="fixed inset-0 hidden flex items-center justify-center z-50">
+      <div class="modal-backdrop absolute inset-0"></div>
+      <div class="relative bg-white rounded-lg shadow-lg w-[90%] max-w-4xl p-6 z-60 overflow-y-auto max-h-[90vh]">
+        <div class="flex items-start justify-between">
+          <h4 id="previewTitle" class="text-lg font-semibold">Aperçu</h4>
+          <div class="flex items-center gap-2">
+            <button id="printFromPreview" class="btn-primary px-3 py-2 rounded">Imprimer</button>
+            <button id="closePreview" class="btn-secondary px-3 py-2 rounded">Fermer</button>
+          </div>
+        </div>
+        <div id="previewContent" class="mt-4"></div>
+      </div>
+    </div>
+
+    <!-- Student modal for large image + print options -->
+  <div id="studentModal" class="fixed inset-0 hidden flex items-center justify-center z-50">
+      <div class="modal-backdrop absolute inset-0"></div>
+      <div class="relative bg-white rounded-lg shadow-lg w-[94%] max-w-4xl p-6 z-60 overflow-y-auto max-h-[92vh]">
+        <div class="flex items-start justify-between">
+          <h4 id="studentName" class="text-lg font-semibold">Étudiant</h4>
+          <button id="closeStudentModal" class="btn-secondary px-3 py-2 rounded">Fermer</button>
+        </div>
+  <div class="modal-accent"></div>
+        <div class="mt-4 flex gap-6">
+          <div class="w-56 h-56 bg-gray-100 rounded overflow-hidden flex items-center justify-center border">
+            <img id="studentPhotoLarge" src="" alt="photo" class="object-cover w-full h-full" />
+          </div>
+          <div class="flex-1">
+            <p id="studentInfo" class="text-sm text-gray-700"></p>
+            <div class="mt-4 flex gap-3 items-center">
+              <label class="text-sm font-medium">Imprimer :</label>
+              <!-- keep fiche/langue options -->
+              <button class="print-option btn-primary px-3 py-2 rounded" data-type="fiche">Fiche inscription</button>
+              <button class="print-option btn-primary px-3 py-2 rounded" data-type="fiche_langue">Fiche langue</button>
+            </div>
+            <div class="mt-6">
+              <h5 class="text-sm font-semibold">Paiements récents</h5>
+              <div id="studentPaymentsList" style="margin-top:8px; max-height:200px; overflow:auto;">
+                <!-- payments will be injected here as a list with print buttons -->
+                <div class="text-sm text-gray-500">Chargement...</div>
+              </div>
+              <div class="mt-3 text-sm small-note">Choisissez quel reçu imprimer pour cet étudiant.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  {# Expose students data to JS via a JSON script tag populated by the view #}
+  <script id="students_data" type="application/json">{{ students_json|safe }}</script>
+  <!-- QR generation library (generates data URL QR so it displays reliably) -->
+  <script src="{% static 'static/vendor/js/qrcode.min.js' %}"></script>
+
+  <script>
+    (function(){
+  // Read students from json_script
+  let STUDENTS = [];
+      try { STUDENTS = JSON.parse(document.getElementById('students_data').textContent || '[]'); } catch(e){ STUDENTS = []; }
+
+  // Force printed documents to use the new static school logo
+  var SCHOOL_LOGO = "{% if school_logo %}{{ school_logo }}{% else %}{% static 'school_logo.png' %}{% endif %}";
+
+      // Utility: open printable window with minimal styling
+      function printHtml(html, title){
+        const w = window.open('', '_blank');
+        if(!w) { alert('Autorisez les pop-ups pour imprimer.'); return; }
+        w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+ (title||'Impression') +'</title>');
+        w.document.write('<link href="{% static 'static/vendor/js/tailwind.js' %}" rel="stylesheet">');
+        w.document.write('</head><body class="p-6">');
+        w.document.write(html);
+        w.document.write('</body></html>');
+        w.document.close();
+        // Delay to ensure styles load
+        setTimeout(function(){ w.print(); }, 250);
+      }
+
+      // Build preview table from list of students (simple columns)
+      function buildStudentsTable(list){
+        let html = '<table class="w-full preview-table">';
+        html += '<thead><tr><th>ID</th><th>Nom</th><th>Formation</th><th>Date Inscription</th><th>Situation</th></tr></thead>';
+        html += '<tbody>';
+        list.forEach(s => {
+          html += '<tr>';
+          html += '<td>'+ (s.id||'') +'</td>';
+          html += '<td>'+ (s.nom? (s.nom+' '+(s.prenom||'')) : '-') +'</td>';
+          html += '<td>'+ (s.formation_text || (s.formation||'')) +'</td>';
+          html += '<td>'+ (s.date_inscription|| s.date_inscription_string || '-') +'</td>';
+          html += '<td>'+ (s.situation || s.statut || '-') +'</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+      }
+
+      // Filters for students list card
+      document.getElementById('previewStudentsBtn').addEventListener('click', function(){
+        const from = document.getElementById('etu_date_from').value;
+        const to = document.getElementById('etu_date_to').value;
+        const situation = document.getElementById('etu_situation').value;
+        const statut = document.getElementById('etu_statut').value;
+        const filtered = STUDENTS.filter(s => {
+          if(situation && (s.situation||'').toLowerCase().indexOf(situation.toLowerCase())===-1) return false;
+          if(statut){
+            if(statut==='verifie' && !(s.verification_step && s.verification_step>=3)) return false;
+            if(statut==='non_verifie' && (s.verification_step && s.verification_step>=3)) return false;
+            if(statut==='inscrit' && (s.inscription_status||'')!=='inscrit') return false;
+            if(statut==='non_inscrit' && (s.inscription_status||'')==='inscrit') return false;
+          }
+          if(from){ if(!(s.date_inscription) || s.date_inscription < from) return false; }
+          if(to){ if(!(s.date_inscription) || s.date_inscription > to) return false; }
+          return true;
+        });
+        const html = buildStudentsTable(filtered);
+        openPreview('Aperçu: Liste des étudiants', html);
+      });
+
+
+     
+
+      document.getElementById('pdfStudentsBtn').addEventListener('click', function(){
+        const from = document.getElementById('etu_date_from').value;
+        const to = document.getElementById('etu_date_to').value;
+        const situation = document.getElementById('etu_situation').value;
+        const statut = document.getElementById('etu_statut').value;
+        // reuse filter logic
+        document.getElementById('previewStudentsBtn').click();
+        // when preview open, user can print to PDF; additionally we auto-print
+        setTimeout(() => { document.getElementById('printFromPreview').click(); }, 300);
+      });
+
+      // Inscriptions preview
+      document.getElementById('previewInsBtn').addEventListener('click', function(){
+        // For simplicity use students list and filter by formation/group/date
+        const f = document.getElementById('ins_formation').value;
+        const g = document.getElementById('ins_groupe').value;
+        const date = document.getElementById('ins_date').value;
+        const t = document.getElementById('ins_formateur').value;
+        const list = STUDENTS.filter(s => {
+          if(f && String(s.formation||'') !== String(f)) return false;
+          if(date && (s.date_inscription||'') !== date) return false;
+          // groupes and formateur fields may be absent in students, so we keep permissive
+          return true;
+        });
+        openPreview('Aperçu: Inscriptions', buildStudentsTable(list));
+      });
+      document.getElementById('pdfInsBtn').addEventListener('click', function(){ document.getElementById('previewInsBtn').click(); setTimeout(()=>document.getElementById('printFromPreview').click(),300); });
+
+      // Paiements preview - here we expect payment info inside student.payments array optionally
+      document.getElementById('previewPayBtn').addEventListener('click', function(){
+        const from = document.getElementById('pay_date_from').value;
+        const to = document.getElementById('pay_date_to').value;
+        const min = parseFloat(document.getElementById('pay_min').value||0);
+        const max = parseFloat(document.getElementById('pay_max').value||Infinity);
+        const f = document.getElementById('pay_formation').value;
+        // build flattened payments list
+        let payments = [];
+        STUDENTS.forEach(s=>{
+          if(Array.isArray(s.payments)){
+            s.payments.forEach(p=>{
+              if(f && String(p.formation_id||s.formation) !== String(f)) return;
+              const amt = parseFloat(p.amount||0);
+              if(amt < min) return; if(amt > max) return;
+              if(from && p.date && p.date < from) return;
+              if(to && p.date && p.date > to) return;
+              payments.push({ student: s, payment: p });
+            });
+          }
+        });
+        // render simple payments table
+        let html = '<table class="w-full preview-table"><thead><tr><th>Étudiant</th><th>Date</th><th>Montant</th><th>Formation</th></tr></thead><tbody>';
+        payments.forEach(r => { html += '<tr><td>'+ (r.student.nom+' '+(r.student.prenom||'')) +'</td><td>'+ (r.payment.date||'') +'</td><td>'+ (r.payment.amount||'') +'</td><td>'+ (r.payment.formation_name||'') +'</td></tr>'; });
+        html += '</tbody></table>';
+        openPreview('Aperçu: Paiements', html);
+      });
+      document.getElementById('pdfPayBtn').addEventListener('click', function(){ document.getElementById('previewPayBtn').click(); setTimeout(()=>document.getElementById('printFromPreview').click(),300); });
+
+      // Search results rendering
+      const resultsEl = document.getElementById('searchResults');
+      function renderSearch(list){
+        resultsEl.innerHTML = '';
+        if(!list.length){ resultsEl.innerHTML = '<div class="text-gray-500">Aucun résultat</div>'; return; }
+        // create nodes with stagger class then apply play with timeout
+        list.forEach((s, idx)=>{
+          const card = document.createElement('div');
+          card.className = 'result-card stagger-item cursor-pointer';
+          const photo = s.photo_url || "{% static 'images/delete_18986470.gif' %}";
+          const name = (s.nom || '') + ' ' + (s.prenom || '');
+          card.innerHTML = `
+            <div class="flex items-center gap-4 w-full">
+              <div class="w-28 h-28 rounded-lg overflow-hidden bg-gray-100 border"> <img src="${photo}" class="object-cover w-full h-full"/> </div>
+              <div class="flex-1">
+                <div class="font-semibold text-sm">${name}</div>
+                <div class="text-xs text-gray-500">ID: ${s.id||''}</div>
+                <div class="mt-2 text-xs text-green-600 font-medium truncate w-full">${s.formation_text || ''}</div>
+              </div>
+            </div>
+          `;
+          // tilt micro-interaction on pointer move
+          card.addEventListener('pointermove', function(e){
+            const rect = card.getBoundingClientRect();
+            const px = (e.clientX - rect.left) / rect.width - 0.5;
+            const py = (e.clientY - rect.top) / rect.height - 0.5;
+            card.style.transform = `translateY(-6px) rotateX(${(-py*4)}deg) rotateY(${(px*6)}deg) scale(1.02)`;
+          });
+
+
+
+
+
+
+          
+          card.addEventListener('pointerleave', function(){ card.style.transform = ''; });
+          card.addEventListener('click', function(){ openStudentModal(s.id); });
+          resultsEl.appendChild(card);
+          // stagger play
+          setTimeout(()=>{ card.classList.add('play'); }, idx * 80);
+        });
+      }
+
+      // wire formation search input to filter the formation select
+      const searchFormation = document.getElementById('searchFormation');
+      if(searchFormation){
+        searchFormation.addEventListener('input', function(e){
+          const q = (e.target.value||'').toLowerCase().trim();
+          const sel = document.getElementById('ins_formation');
+          if(!sel) return;
+          for(let i=0;i<sel.options.length;i++){
+            const opt = sel.options[i];
+            opt.style.display = (!q || opt.text.toLowerCase().includes(q)) ? '' : 'none';
+          }
+        });
+      }
+
+      const rapInput = document.getElementById('rap_search');
+      function showAllStudents(){ renderSearch(STUDENTS.slice(0,128)); }
+      if(rapInput){
+        rapInput.addEventListener('focus', function(){ showAllStudents(); });
+        rapInput.addEventListener('click', function(){ showAllStudents(); });
+        rapInput.addEventListener('input', function(e){
+          const q = (e.target.value||'').toLowerCase().trim();
+          if(!q){ showAllStudents(); return; }
+          const found = STUDENTS.filter(s => {
+            return (s.nom||'').toLowerCase().includes(q) || (s.prenom||'').toLowerCase().includes(q) || String(s.id||'').includes(q) || (s.telephone||'').toLowerCase().includes(q) || (s.email||'').toLowerCase().includes(q);
+          }).slice(0,64);
+          renderSearch(found);
+        });
+      }
+      // hide results when clicking outside the search area
+      document.addEventListener('click', function(e){
+        const searchArea = document.querySelector('.student-search-section');
+        const resultsEl = document.getElementById('searchResults');
+        if(!searchArea || !resultsEl) return;
+        if(searchArea.contains(e.target)) return; // click inside -> do nothing
+        // click outside -> hide results
+        resultsEl.innerHTML = '';
+      });
+
+      // Student modal
+      function openStudentModal(id){
+        const s = STUDENTS.find(x=>String(x.id)===String(id)); if(!s) return alert('Étudiant introuvable');
+        document.getElementById('studentName').textContent = (s.nom||'') + ' ' + (s.prenom||'');
+        const info = [];
+        if(s.email) info.push('Email: '+s.email);
+        if(s.telephone) info.push('Tél: '+s.telephone);
+        if(s.adresse) info.push('Adresse: '+s.adresse);
+        document.getElementById('studentInfo').innerHTML = info.join('<br/>');
+  const img = document.getElementById('studentPhotoLarge'); img.src = s.photo_url || "{% static 'images/delete_18986470.gif' %}";
+        document.getElementById('studentModal').classList.remove('hidden');
+        // attach print handlers
+        document.querySelectorAll('#studentModal .print-option').forEach(btn=>{
+          btn.onclick = function(){
+            const type = this.getAttribute('data-type');
+            buildAndPrintStudent(s, type);
+          };
+        });
+
+        // populate payments list in the modal (if available in student data)
+        const paymentsContainer = document.getElementById('studentPaymentsList');
+        paymentsContainer.innerHTML = '';
+        try{
+          const pays = Array.isArray(s.payments) ? s.payments.slice().reverse() : (s.last_payment ? [s.last_payment] : []);
+          if(!pays || pays.length===0){ paymentsContainer.innerHTML = '<div class="text-sm text-gray-500">Aucun paiement enregistré.</div>'; }
+          else{
+            pays.forEach(function(p){
+              const row = document.createElement('div');
+              row.style.display = 'flex'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.padding='6px 8px'; row.style.borderBottom='1px solid #f1f5f9';
+              const left = document.createElement('div'); left.style.fontSize='13px'; left.innerHTML = (p.date || '') + ' &nbsp; — &nbsp; ' + (p.amount || p.montant || '') + ' DA' + (p.formation_name ? (' — ' + p.formation_name) : '');
+              const actions = document.createElement('div');
+              const printBtn = document.createElement('button'); printBtn.className='btn-primary px-2 py-1 rounded'; printBtn.textContent='Imprimer';
+              printBtn.onclick = function(){ const pid = p.id || p.pk || p.payment_id || p.paymentId || null; if(pid) printPaymentById(pid); else alert('Identifiant du paiement introuvable.'); };
+              actions.appendChild(printBtn);
+              row.appendChild(left); row.appendChild(actions);
+              paymentsContainer.appendChild(row);
+            });
+          }
+        }catch(e){ paymentsContainer.innerHTML = '<div class="text-sm text-red-500">Erreur chargement paiements.</div>'; }
+      }
+      document.getElementById('closeStudentModal').addEventListener('click', function(){ document.getElementById('studentModal').classList.add('hidden'); });
+
+
+
+       
+
+      
+
+
+
+      // Build student printable fragments
+      function buildAndPrintStudent(s, type){
+        let html = '';
+  if(type==='fiche'){
+  // Build the fiche dynamically and generate a QR as a data URL (reliable display)
+  const photo = s.photo_url || "{% static 'images/default-avatar.png' %}";
+  const studentId = s.id || '';
+  const fullname = ((s.nom||'') + ' ' + (s.prenom||'')).trim();
+  const formation = s.formation_text || s.formation || '-';
+  const email = s.email || '-';
+  const tel = s.telephone || '-';
+  const adresse = s.adresse || s.address || '-';
+  const profession = s.profession || '';
+  const pays = s.pays || s.country || 'Algérie';
+  const wilaya = s.wilaya || s.region || '';
+  const code_lecteur = s.code_lecteur || s.code || studentId || '';
+  const date_naissance = s.date_naissance || s.date_naissance_string || '';
+  const date_inscription = s.date_inscription || s.date_inscription_string || '';
+  const nin = s.nin || s.national_id || '';
+  const nom_ar = s.nom_ar || s.nom_arabic || '';
+  const prenom_ar = s.prenom_ar || s.prenom_arabic || '';
+
+  const qrPayloadObj = { id: studentId, name: fullname, code: code_lecteur };
+  const qrPayload = JSON.stringify(qrPayloadObj);
+
+  // use QRCode lib to generate data URL asynchronously
+  QRCode.toDataURL(qrPayload, { width: 150 }, function(err, qrDataUrl){
+    const qrSrc = (!err && qrDataUrl) ? qrDataUrl : ('https://chart.googleapis.com/chart?cht=qr&chs=150x150&chl=' + encodeURIComponent(qrPayload));
+
+    html = '';
+  html += '<div style="width:720px;margin:0 auto;padding:14px 18px;box-sizing:border-box;background:#fff;font-family:Arial, sans-serif;color:#000;position:relative;min-height:820px;">';
+
+    // Styles
+    html += '<style>';
+  html += '@media print { body { margin: 0; } }';
+  html += '@media print { .genie-commitments, .genie-commitments-box, .genie-observation, .genie-signatures, .disponibilites-box { page-break-inside:avoid; page-break-after:avoid; break-inside:avoid; } }';
+    html += '.genie-header { text-align:center; margin-bottom:12px; }';
+    html += '.genie-title { font-weight:bold; font-size:20px; margin-bottom:3px; }';
+    html += '.genie-subtitle { font-size:12px; line-height:1.2; color:#333; }';
+    html += '.genie-form-title { text-align:center; font-weight:bold; font-size:16px; margin:12px 0 8px 0; text-decoration:underline; }';
+    html += '.genie-soussigne { font-size:13px; margin-bottom:8px; }';
+  html += '.genie-main-grid { display:flex; gap:10px; margin-bottom:8px; align-items:flex-start; }';
+  html += '.genie-photo-container { flex-shrink:0; }';
+  html += '.genie-photo { width:90px; height:120px; border:1px solid #000; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#f6f6f6; }';
+    html += '.genie-middle-section { flex:1; padding-right:8px; }';
+    html += '.genie-arabic-section { width:140px; flex-shrink:0; display:flex; flex-direction:column; justify-content:flex-start; }';
+    html += '.genie-row { display:flex; gap:12px; margin-bottom:8px; }';
+    html += '.genie-col { flex:1; }';
+    html += '.genie-label { font-size:12px; color:#000; display:block; margin-bottom:4px; }';
+    html += '.genie-input { border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:13px; background:transparent; min-height:18px; }';
+    html += '.genie-input-inline { display:inline-block; min-width:120px; border-bottom:1px solid #000; padding:2px 4px; }';
+  html += '.genie-commitments { margin-top:100px; }';
+  html += '.genie-commitments-table { width:100%; border-collapse:collapse; margin-top:12px; }';
+  html += '.genie-commitments-table td { vertical-align:top; padding:10px; font-size:12px; }';
+  html += '.genie-commitments-box { border:1px solid #000; padding:8px; }';
+  html += '.genie-commitments-head { font-weight:bold; margin-bottom:6px; font-size:13px; }';
+  html += '.genie-commitments-note { margin-top:8px; font-weight:bold; text-align:center; font-size:12px; }';
+  html += '.genie-signatures { display:flex; justify-content:space-between; margin:28px 24px 8px 24px; page-break-inside:avoid; page-break-after:avoid; }';
+  html += '.genie-signature-line { width:160px; border-bottom:1px solid #000; height:30px; margin-bottom:4px; }';
+    html += '.genie-observation { margin-top:12px; font-size:12px; }';
+    html += '</style>';
+
+    // Logo left and QR right
+  // raise logo slightly so it doesn't collide with the "Je soussigné(e)" line; keep logo size, reduce QR size
+  html += '<div style="position:absolute; left:20px; top:-9px;"><img src="' + SCHOOL_LOGO + '" alt="Logo" style="width:140px; height:140px; object-fit:contain; border-radius:8px;"/></div>';
+  html += '<div style="position:absolute; right:20px; top:6px;"><img src="' + qrSrc + '" alt="QR Code" style="width:110px; height:110px; object-fit:contain;"/></div>';
+    html += '<div class="genie-header">';
+    html += '<div class="genie-title">Génie Système School</div>';
+    html += '<div class="genie-subtitle">Ecole de Langues et Consulting dans les nouvelles technologies</div>';
+    html += '<div class="genie-subtitle">Bureau d\'étude en informatique, incubateur d\'entreprise</div>';
+    html += '</div>';
+
+    // Form title (match scanned wording)
+    html += '<div class="genie-form-title">Fiche d\'engagement et d\'inscription du lecteur</div>';
+    html += '<div class="genie-soussigne">Je soussigné(e) :</div>';
+
+    // Main grid: photo | middle fields | arabic
+    html += '<div class="genie-main-grid">';
+
+    // Photo
+    html += '<div class="genie-photo-container">';
+    html += '<div class="genie-photo"><img src="'+ photo + '" alt="Photo" style="width:100%; height:100%; object-fit:cover;"/></div>';
+    html += '</div>';
+
+  // Middle fields: labels on left, values to the right and aligned across columns
+  html += '<div class="genie-middle-section">';
+
+  // consistent label width for alignment (narrower to tighten label→value spacing)
+  const LABEL_W = 90;
+
+  // First line: Nom (latin)  | Nom (arabic)
+  html += '<div style="display:flex; gap:14px; margin-bottom:12px;">';
+  // Left: Nom
+  html += '<div style="flex:1; display:flex; align-items:center;">';
+  html += '<div style="width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:600; line-height:18px; display:inline-block; vertical-align:middle">Nom :</div>';
+  html += '<div style="flex:1; font-size:12px; color:#222; padding-left:6px; line-height:18px; display:inline-block; vertical-align:middle">' + (s.nom || '') + '</div>';
+  html += '</div>';
+  // Right: Arabic name
+  html += '<div style="flex:1; display:flex; align-items:center; justify-content:flex-end; direction:rtl;">';
+  html += '<div style="flex:1; text-align:right; font-size:13px; padding-right:2px">' + nom_ar + '</div>';
+  html += '<div style="width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:700; text-align:right">اللقب :</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // ...existing code...
+
+  // Second line: Prénom (latin) | Prénom (arabic)
+  html += '<div style="display:flex; gap:14px; margin-bottom:12px;">';
+  html += '<div style="flex:1; display:flex; align-items:center;">';
+  html += '<div style="width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:600; line-height:18px; display:inline-block; vertical-align:middle">Prénom :</div>';
+  html += '<div style="flex:1; font-size:12px; color:#222; padding-left:6px; line-height:18px; display:inline-block; vertical-align:middle">' + (s.prenom || '') + '</div>';
+  html += '</div>';
+  html += '<div style="flex:1; display:flex; align-items:center; justify-content:flex-end; direction:rtl;">';
+  html += '<div style="flex:1; text-align:right; font-size:13px; padding-right:2px">' + prenom_ar + '</div>';
+  html += '<div style="width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:700; text-align:right">الاسم :</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // Row: Date de naissance & Date d'inscription on the same line (no wrapping) -- ensure label width and value padding to avoid collapse
+  html += '<div style="display:flex; gap:14px; margin-bottom:12px; align-items:center;">';
+  html += '<div style="flex:1; white-space:nowrap; display:flex; align-items:center;">';
+  html += '<div style="flex:0 0:'+LABEL_W+'px; width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:700; line-height:18px;">Date de naissance :</div>';
+  // show date and lieu together; join with 'à' when lieu present
+  html += '<div style="flex:1; font-size:12px; color:#222; padding-left:8px; text-align:left; line-height:18px;">' + (date_naissance || '') + (s.lieu_naissance ? (' à ' + s.lieu_naissance) : '') + '</div>';
+  html += '</div>';
+
+  html += '<div style="flex:1; white-space:nowrap; display:flex; align-items:center;">';
+  html += '<div style="flex:0 0:'+LABEL_W+'px; width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:700; line-height:18px;">Date d\'inscription :</div>';
+  // value uses flex:1 so it is placed to the right of the label and cannot overlap
+  html += '<div style="flex:1; font-size:12px; color:#222; padding-left:30px; text-align:left; line-height:18px;">' + date_inscription + '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // Next row: Code candidat(e) | Profession
+  html += '<div style="display:flex; gap:14px; margin-bottom:10px;">';
+  html += '<div style="flex:1; white-space:nowrap; display:flex; align-items:center;">';
+  html += '<div style="width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:600; line-height:18px; display:inline-block; vertical-align:middle">Code Etudiant :</div>';
+  html += '<div style="font-size:12px; color:#222; padding-left:6px; line-height:18px; display:inline-block; vertical-align:middle">' + code_lecteur + '</div>';
+  html += '</div>';
+  html += '<div style="flex:1; white-space:nowrap; display:flex; align-items:center;">';
+  html += '<div style="width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:600; line-height:18px; display:inline-block; vertical-align:middle">Profession :</div>';
+  html += '<div style="font-size:12px; color:#222; padding-left:6px; line-height:18px; display:inline-block; vertical-align:middle">' + profession + '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // Next row: Pays | NIN (larger) | Téléphone  -- Pays moved before NIN and tighter spacing between label and value
+  html += '<div style="display:flex; gap:14px; margin-bottom:12px; align-items:center;">';
+  html += '<div style="flex:0 0 180px; white-space:nowrap; display:flex; align-items:center;">';
+  html += '<div style="width:80px; font-size:13px; color:#111; font-weight:600; line-height:18px; display:inline-block; vertical-align:middle">Pays :</div>';
+  html += '<div style="font-size:12px; color:#222; padding-left:4px; line-height:18px; display:inline-block; vertical-align:middle">' + pays + '</div>';
+  html += '</div>';
+  html += '<div style="flex:2; display:flex; align-items:center; gap:6px;">';
+  html += '<div style="width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:600; line-height:18px; display:inline-block; vertical-align:middle">NIN :</div>';
+  html += '<div style="flex:1; font-size:12px; color:#222; padding-left:4px; font-family:monospace; letter-spacing:1px; line-height:18px; display:inline-block; vertical-align:middle">' + (nin || '') + '</div>';
+  html += '</div>';
+  html += '<div style="flex:1; display:flex; align-items:center; gap:6px;">';
+  html += '<div style="width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:600; line-height:18px; display:inline-block; vertical-align:middle">Téléphone :</div>';
+  html += '<div style="flex:1; font-size:12px; color:#222; padding-left:6px; line-height:18px; display:inline-block; vertical-align:middle">' + tel + '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // Row: Adresse Email | Adresse | Wilaya (compact)
+  html += '<div style="display:flex; gap:12px; margin-bottom:8px; align-items:center;">';
+  html += '<div style="flex:1; display:flex; align-items:center;">';
+  html += '<div style="flex:0 0:'+LABEL_W+'px; width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:700">E-mail :</div>';
+  html += '<div style="flex:1; font-size:12px; padding-left:6px; color:#222">' + email + '</div>';
+  html += '</div>';
+  html += '<div style="flex:1; display:flex; align-items:center;">';
+  html += '<div style="flex:0 0:'+LABEL_W+'px; width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:700">Adresse :</div>';
+  html += '<div style="flex:1; font-size:12px; padding-left:6px; color:#222">' + adresse + '</div>';
+  html += '</div>';
+  html += '<div style="flex:1; display:flex; align-items:center;">';
+  html += '<div style="flex:0 0:'+LABEL_W+'px; width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:700">Wilaya :</div>';
+  html += '<div style="flex:1; font-size:12px; padding-left:6px; color:#222">' + wilaya + '</div>';
+  html += '</div>';
+  html += '</div>';
+  // Row: Formations choisies moved to bottom (replace Pays) - ensure Pays sits on same line
+  html += '<div style="display:flex; gap:12px; margin-top:6px; align-items:center;">';
+  html += '<div style="flex:1; display:flex; align-items:center;"><div style="flex:0 0:'+LABEL_W+'px; width:'+LABEL_W+'px; font-size:13px; color:#111; font-weight:700">Formations choisies :</div><div style="flex:1; font-size:12px; padding-left:6px; color:#222">' + formation + '</div></div>';
+  // removed duplicated bottom Pays cell (Pays already shown above next to NIN)
+  html += '</div>';
+
+  html += '</div>'; // end middle
+
+    // removed duplicate Arabic column (names already shown beside latin fields)
+
+    html += '</div>'; // end main grid
+
+  // Conditions Générales table (title above the box, single bottom note)
+  // tighten spacing before commitments to save vertical space
+  html += '<div class="genie-commitments" style="margin-top:6px;">';
+  html += '<div style="text-align:center; font-weight:bold; margin-bottom:4px; font-size:14px;">Conditions Générales</div>';
+  html += '<div class="genie-commitments-box">';
+  html += '<table class="genie-commitments-table" role="presentation">';
+  html += '<tr>';
+  html += '<td style="width:50%; border-right:1px solid #000;">';
+  html += '<div class="genie-commitments-head">Modalités de paiement :</div>';
+  html += '<ul style="margin:0; padding-left:18px; font-size:12px; line-height:1.45;">';
+  html += '<li>Le versement de la moitié (½) du tarif à l\'inscription, le reste est échelonné en deux (02) tranches, à solder impérativement avant la fin de la formation (Cycle théorique) aux échéances imposées par l\'administration.</li>';
+  html += '<li>Les frais de préinscription (500,00 DA) ne sont pas remboursables.</li>';
+  html += '<li>Les droits d\'inscriptions ne peuvent faire l\'objet d\'un remboursement.</li>';
+  html += '<li>En cas de désistement en cours de formation, les mois versés ne seront pas remboursés.</li>';
+  html += '</ul>';
+  html += '</td>';
+  html += '<td style="width:50%; padding-left:12px;">';
+  html += '<div class="genie-commitments-head">Sanctions en cas de non-paiement :</div>';
+  html += '<ul style="margin:0; padding-left:18px; font-size:12px; line-height:1.45;">';
+  html += '<li>L\'étudiant qui ne se conforme pas aux modalités de paiement ou qui ne respecte pas les échéances de versement :</li>';
+  html += '<li style="margin-top:6px;">• Ne pourra obtenir de certificat de scolarité ;</li>';
+  html += '<li>• Ne pourra obtenir d\'attestation de formation.</li>';
+  html += '</ul>';
+  html += '</td>';
+  html += '</tr>';
+  html += '<tr>';
+  html += '<td style="width:50%; border-top:1px solid #000; border-right:1px solid #000; padding-top:10px;">';
+  html += '<div class="genie-commitments-head">(suite) :</div>';
+  html += '<ul style="margin:0; padding-left:18px; font-size:12px; line-height:1.45;">';
+  html += '<li>Toute absence doit faire l\'objet de justification valable afin d\'être récupérée avec un autre groupe dans la mesure du possible.</li>';
+  html += '</ul>';
+  html += '</td>';
+  html += '<td style="width:50%; border-top:1px solid #000; padding-top:10px; padding-left:12px;">';
+  html += '<div class="genie-commitments-head">Séances de récupération et /ou rattrapage :</div>';
+  html += '<div style="font-size:12px; line-height:1.45;">Sauf cas de force majeur, les cours ratés ne feront pas l\'objet de récupération.</div>';
+  html += '</td>';
+  html += '</tr>';
+  html += '</table>';
+  // single centered note below the box
+  html += '<div style="padding-top:8px;">';
+  html += '<div style="text-align:center; font-weight:bold; font-size:12px;">Toute absence doit faire l\'objet de justification valable afin d\'être récupérée avec un autre groupe dans la mesure du possible.</div>';
+  html += '</div>';
+  html += '</div>';
+  html += '</div>';
+
+    // Observation & note about validity
+  // Compact Disponibilités placed under Conditions Générales (small to fit one page)
+  html += '<div style="margin-top:10px;">';
+  html += '<div style="border:1px solid #000; padding:6px; position:relative; font-size:12px;">';
+  html += '<div style="text-align:center; font-weight:bold; margin-bottom:6px;">Disponibilités</div>';
+  html += '<table style="width:100%; border-collapse:collapse; font-size:10px;">';
+  html += '<tr><td style="width:20%; padding:6px; border:1px solid #000;">&nbsp;</td>';
+  html += '<td style="text-align:center; border:1px solid #000;">Dim</td>';
+  html += '<td style="text-align:center; border:1px solid #000;">Lun</td>';
+  html += '<td style="text-align:center; border:1px solid #000;">Mar</td>';
+  html += '<td style="text-align:center; border:1px solid #000;">Mer</td>';
+  html += '<td style="text-align:center; border:1px solid #000;">Jeu</td>';
+  html += '<td style="text-align:center; border:1px solid #000;">Ven</td>';
+  html += '<td style="text-align:center; border:1px solid #000;">Sam</td></tr>';
+  html += '<tr><td style="padding:3px; border:1px solid #000;">Matin</td>';
+  for(let i=0;i<7;i++){ html += '<td style="height:16px; border:1px solid #000; text-align:center;">□</td>'; }
+  html += '</tr>';
+  html += '<tr><td style="padding:3px; border:1px solid #000;">Après-midi</td>';
+  for(let i=0;i<7;i++){ html += '<td style="height:16px; border:1px solid #000; text-align:center;">□</td>'; }
+  html += '</tr>';
+  html += '</table>';
+  html += '<div style="margin-top:6px; font-size:10px;">Êtes-vous disponible pour suivre un programme de 1 à 6 mois ? &nbsp; Oui □ &nbsp; Non □ &nbsp;&nbsp; Avec stage □ &nbsp; Sans stage □</div>';
+  html += '</div>';
+  html += '</div>';
+    html += '<div class="genie-observation">';
+    html += '<strong>Observation :</strong><br/>';
+    html += 'L\'engagement est valable une année à partir de la date d\'inscription.';
+    html += '</div>';
+
+  // Signatures spacer reduced to fit on one page
+  html += '<div style="height:8px"></div>';
+  // Signatures
+  html += '<div class="genie-signatures" style="margin:18px 24px 8px 24px;">';
+    html += '<div style="text-align:left">';
+    html += '<div class="genie-signature-line"></div>';
+    html += '<div style="font-size:13px;">Signature</div>';
+    html += '</div>';
+    html += '<div style="text-align:right">';
+    html += '<div class="genie-signature-line"></div>';
+    html += '<div style="font-size:13px;">L\'égalisation</div>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '</div>';
+
+    printHtml(html, (type + ' - ' + (s.nom || '')));
+  });
+  // async QR generation handled printing already
+  return;
+        }
+        // New: fiche_langue layout
+        if(type === 'fiche_langue'){
+          const photo = s.photo_url || "{% static 'images/default-avatar.png' %}";
+          const fullname = ((s.nom||'') + ' ' + (s.prenom||'')).trim();
+          const date_naissance = s.date_naissance || s.date_naissance_string || '';
+          const adresse = s.adresse || s.address || '';
+          const tel = s.telephone || '-';
+          const email = s.email || '-';
+          const formation = s.formation_text || s.formation || '-';
+          const nom = s.nom || '';
+          const prenom = s.prenom || '';
+          const code = s.code_lecteur || s.code || s.id || '';
+
+          // Pixel-faithful layout inspired by the scanned form. Use A4 width and precise sections.
+          html = '';
+          html += '<div style="width:794px;margin:0 auto;padding:18px 28px;font-family:Georgia, "Times New Roman", Times, serif;color:#111;background:#fff;box-sizing:border-box;">';
+
+          // Header: left circular logo, centered title, right phone and small date box
+          html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;">';
+          html += '<div style="width:140px;display:flex;align-items:center;">';
+          html += '<div style="width:118px;height:118px;border-radius:50%;border:2px solid #222;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff;\"><img src="' + SCHOOL_LOGO + '" alt="logo" style="width:106px;height:106px;object-fit:contain;"/></div>';
+          html += '</div>';
+
+          html += '<div style="flex:1;text-align:center;padding-top:6px;">';
+          html += '<div style="font-size:34px;font-weight:700;letter-spacing:0.5px;">Génie.Système.School</div>';
+          html += '<div style="font-size:11px;margin-top:4px;color:#333;">Route du stade - opow- (En face de l\'hôtel MADALA) Bejaia</div>';
+          html += '<div style="font-size:20px;margin-top:10px;font-weight:600;">Fiche d\'inscription</div>';
+          html += '</div>';
+
+          html += '<div style="width:160px;text-align:right;">';
+          html += '<div style="font-size:12px;color:#333;padding-top:6px;">Tel : ' + (tel || '') + '</div>';
+          html += '<div style="margin-top:10px;border:1px solid #222;padding:6px;width:120px;margin-left:auto;">';
+          html += '<div style="font-size:11px;color:#333;">Fiche ouverte le :</div>';
+          html += '<div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">';
+          html += '<span style="width:28px;height:18px;border-bottom:1px solid #000;display:inline-block"></span>';
+          html += '<span style="width:28px;height:18px;border-bottom:1px solid #000;display:inline-block"></span>';
+          html += '<span style="width:28px;height:18px;border-bottom:1px solid #000;display:inline-block"></span>';
+          html += '</div></div></div>';
+          html += '</div>';
+
+          // Main content: left details, right photo & test box
+          html += '<div style="display:flex;gap:22px;margin-top:18px;">';
+          // Left column -- details (approx 58%)
+          html += '<div style="flex:0 0 58%;">';
+          html += '<div style="font-size:18px;font-weight:700;margin-bottom:8px;">Détails personnels :</div>';
+          // Title row with civilité line (Mr Mme Mlle options)
+          html += '<div style="margin-bottom:8px;font-size:13px;">Mr O &nbsp;&nbsp; Mme O &nbsp;&nbsp; Melle O</div>';
+
+          function_print_fields_placeholder = false; // placeholder to keep patch context stable
+          // Fields with dotted lines like the scanned form
+          const fields = [
+            ['Nom', nom],
+            ['Prénom', prenom],
+            ['Date de naissance', date_naissance],
+            ['Lieu de naissance', s.lieu_naissance||''],
+            ['Adresse personnelle', adresse],
+            ['Niveau scolaire', s.niveau_scolaire||''],
+            ['Profession', s.profession||''],
+            ['Tél', tel]
+          ];
+          // Render fields
+          fields.forEach(f => {
+            html += '<div style="margin-bottom:10px;font-size:13px;">';
+            html += '<span style="display:inline-block;width:140px;font-weight:600;">' + f[0] + ' :</span>';
+            html += '<span style="display:inline-block;border-bottom:1px dotted #000;padding:4px 6px;min-width:320px;">' + (f[1] || '&nbsp;') + '</span>';
+            html += '</div>';
+          });
+
+          // Contact person section
+          html += '<div style="margin-top:6px;font-size:13px;">';
+          html += '<div>Personne à contacter : <span style="border-bottom:1px dotted #000;padding:2px 8px;min-width:200px;display:inline-block;">' + (s.contact_person||'') + '</span></div>';
+          html += '<div style="margin-top:8px;">Nom et prénom : <span style="border-bottom:1px dotted #000;padding:2px 8px;min-width:200px;display:inline-block;">' + (s.contact_name||'') + '</span></div>';
+          html += '<div style="margin-top:8px;">Tel : <span style="border-bottom:1px dotted #000;padding:2px 8px;min-width:140px;display:inline-block;">' + (s.contact_tel||'') + '</span></div>';
+          html += '<div style="margin-top:8px;">Adresse : <span style="border-bottom:1px dotted #000;padding:2px 8px;min-width:240px;display:inline-block;">' + (s.contact_address||'') + '</span></div>';
+          html += '</div>';
+
+          // Languages list (left-bottom)
+          html += '<div style="display:flex;gap:18px;margin-top:18px;">';
+          html += '<div style="flex:1;">';
+          const langs = ['Anglais Général','Anglais des affaires','Anglais pour enfants','Français Général','Français pour enfants','Espagnol','Allemand','Arabe','Tamazight','Informatique'];
+          langs.forEach(l => { html += '<div style="font-size:13px;margin-bottom:6px;">&nbsp;&nbsp;O &nbsp;&nbsp;' + l + '</div>'; });
+          html += '</div>';
+
+          // Right column inside left big column is empty placeholder (we align formation details to right column of main)
+          html += '</div>';
+
+          html += '</div>'; // end left col
+
+          // Right column -- photo and test box (approx 42%)
+          html += '<div style="flex:0 0 42%;display:flex;flex-direction:column;align-items:flex-end;">';
+          // Tight photo frame: no padding, image fills the box exactly to avoid empty margins
+          html += '<div style="width:150px;height:210px;border:0.8px solid #000;overflow:hidden;padding:0;display:block;">';
+          html += '<img src="' + photo + '" alt="photo" style="width:100%;height:100%;object-fit:cover;display:block;margin:0;"/>';
+          html += '</div>';
+
+          html += '<div style="width:220px;border:1px solid #000;border-radius:6px;padding:10px;margin-top:12px;">';
+          html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">Test d\'entrée</div>';
+          html += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:6px;">';
+          html += '<div>Score :</div><div>__________</div></div>';
+          html += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:6px;">';
+          html += '<div>Niveau :</div><div>__________</div></div>';
+          html += '</div>';
+
+          // Formation details small area under test box
+          html += '<div style="width:220px;font-size:13px;margin-top:12px;text-align:left;">';
+          html += '<div style="font-weight:600;margin-bottom:6px;">Détails de la formation souhaitée :</div>';
+          html += '<div>Standard O &nbsp;&nbsp; Intensif O</div>';
+          html += '<div style="margin-top:6px;">Matinée O</div>';
+          html += '<div style="margin-top:6px;">Après midi O</div>';
+          html += '<div style="margin-top:6px;">Soir (16h30-18h00) O (18h00-19h30) O</div>';
+          html += '</div>';
+
+          html += '</div>'; // end right col
+          html += '</div>'; // end main content flex
+
+          // Observations box full width
+          html += '<div style="margin-top:18px;border:1px solid #000;padding:10px;min-height:120px;">';
+          html += '<div style="font-weight:600;margin-bottom:8px;">Observations :</div>';
+          html += '<div style="height:86px;">&nbsp;</div>';
+          html += '</div>';
+
+          // Footer: code lecteur left, signature right
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;">';
+          html += '<div style="font-size:13px;">Code lecteur: <strong>' + code + '</strong></div>';
+          html += '<div style="font-size:13px;">Signature: ____________________</div>';
+          html += '</div>';
+
+          html += '</div>';
+
+          // Print
+          printHtml(html, 'Fiche d\'inscription - ' + fullname);
+          return;
+        }
+
+        // If the user requested a payment receipt (bon), fetch the server-rendered receipt
+        if(type === 'bon'){
+          // attempt to find a payment for this student
+          let pay = null;
+          if(Array.isArray(s.payments) && s.payments.length){
+            // prefer the most recent payment (last in the array)
+            pay = s.payments[s.payments.length - 1];
+          } else if(s.last_payment){
+            pay = s.last_payment;
+          }
+          if(!pay){
+            alert('Aucun paiement trouvé pour cet étudiant.');
+            return;
+          }
+          const pid = pay.id || pay.pk || pay.payment_id || pay.paymentId || null;
+          if(!pid){
+            alert('Impossible de déterminer l\'identifiant du paiement à imprimer.');
+            return;
+          }
+          const href = '/paiements/' + pid + '/receipt/';
+          // Fetch the receipt HTML and print in a hidden iframe (no preview shown)
+          try{
+            fetch(href, { credentials: 'same-origin' }).then(function(res){
+              if(!res.ok) throw new Error('Network response not ok');
+              return res.text();
+            }).then(function(htmlText){
+              const iframe = document.createElement('iframe');
+              iframe.style.position = 'fixed'; iframe.style.right='0'; iframe.style.bottom='0'; iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0'; iframe.style.visibility='hidden';
+              document.body.appendChild(iframe);
+              const idoc = iframe.contentWindow.document;
+              idoc.open(); idoc.write(htmlText); idoc.close();
+              setTimeout(function(){
+                try{ iframe.contentWindow.focus(); iframe.contentWindow.print(); }catch(e){ console.warn('print iframe failed', e); }
+                setTimeout(function(){ try{ iframe.remove(); }catch(e){} }, 600);
+              }, 500);
+            }).catch(function(err){
+              console.warn('Fetch receipt failed, falling back to open:', err);
+              var w = window.open(href, '_blank'); if(w) try{ w.focus(); }catch(e){}
+            });
+          }catch(e){ console.warn('print bon error', e); alert('Erreur lors de l\'impression du reçu.'); }
+          return;
+        }
+
+        printHtml(html, (type+' - '+ (s.nom||'') ));
+      }
+
+      // Helper to fetch and print a payment receipt by id (used by modal buttons)
+      function printPaymentById(pid){
+        if(!pid) return alert('Identifiant paiement manquant');
+        const href = '/paiements/' + pid + '/receipt/';
+        fetch(href, { credentials: 'same-origin' }).then(function(res){ if(!res.ok) throw new Error('Network response not ok'); return res.text(); }).then(function(htmlText){
+          const iframe = document.createElement('iframe');
+          iframe.style.position = 'fixed'; iframe.style.right='0'; iframe.style.bottom='0'; iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0'; iframe.style.visibility='hidden';
+          document.body.appendChild(iframe);
+          const idoc = iframe.contentWindow.document;
+          idoc.open(); idoc.write(htmlText); idoc.close();
+          setTimeout(function(){ try{ iframe.contentWindow.focus(); iframe.contentWindow.print(); }catch(e){ console.warn('print iframe failed', e); } setTimeout(function(){ try{ iframe.remove(); }catch(e){} }, 800); }, 500);
+        }).catch(function(err){ console.warn('Fetch receipt failed, falling back to open:', err); var w = window.open(href, '_blank'); if(w) try{ w.focus(); }catch(e){} });
+      }
+
+      // Auto-print when opened with ?print_student_id=... and student data passed via window.opener
+      (function(){
+        try{
+          const params = new URLSearchParams(window.location.search);
+          const sid = params.get('print_student_id');
+          console.debug('[rapports] auto-print check, print_student_id=', sid, ' opener?', !!window.opener);
+          if(!sid) return;
+          // Attempt to obtain student data from several places (opener, sessionStorage/localStorage, or STUDENTS)
+          let studentFromOpener = null;
+          if(window.opener && window.opener._PRINT_STUDENT_DATA){
+            studentFromOpener = window.opener._PRINT_STUDENT_DATA[sid] || null;
+          }
+          let studentFromStorage = null;
+          try{
+            const key = 'PRINT_STUDENT_DATA_' + sid;
+            const raw = sessionStorage.getItem(key) || localStorage.getItem(key) || null;
+              if(raw){ studentFromStorage = JSON.parse(raw); }
+          }catch(e){ studentFromStorage = null; }
+          // If opener provided data, build fiche directly; otherwise attempt storage or STUDENTS list
+          const foundInStudents = STUDENTS && STUDENTS.find ? (STUDENTS.find(x=>String(x.id)===String(sid)) || null) : null;
+          const s = studentFromOpener || studentFromStorage || foundInStudents || null;
+          console.debug('[rapports] data sources -> opener:', !!studentFromOpener, 'storage:', !!studentFromStorage, 'studentsList:', !!foundInStudents);
+          if(!s) {
+            console.warn('[rapports] no student data found for id', sid);
+            // nothing to print
+            return;
+          }
+          // use fiche type
+          const type = 'fiche';
+          // small delay to allow resources to load - override printHtml temporarily so the fiche is printed from this same tab
+          setTimeout(function(){
+            try{
+              var _orig_printHtml = window.printHtml;
+              window.printHtml = function(html, title){
+                document.open();
+                document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+ (title||'Impression') +'</title>');
+                document.write('<link href="{% static 'static/vendor/js/tailwind.js' %}" rel="stylesheet">');
+                document.write('</head><body class="p-6">');
+                document.write(html);
+                document.write('</body></html>');
+                document.close();
+                setTimeout(function(){ window.print(); }, 300);
+              };
+              buildAndPrintStudent(s, type);
+            }finally{
+              // restore original shortly after (give buildAndPrintStudent time to finish)
+              setTimeout(function(){ if(_orig_printHtml) window.printHtml = _orig_printHtml; }, 1200);
+            }
+          }, 220);
+        }catch(e){ console.warn('auto print failed', e); }
+      })();
+
+      // Preview modal helpers
+      function openPreview(title, html){
+        document.getElementById('previewTitle').textContent = title;
+        document.getElementById('previewContent').innerHTML = html;
+        document.getElementById('previewModal').classList.remove('hidden');
+      }
+      document.getElementById('closePreview').addEventListener('click', function(){ document.getElementById('previewModal').classList.add('hidden'); });
+      document.getElementById('printFromPreview').addEventListener('click', function(){
+        const content = document.getElementById('previewContent').innerHTML;
+        printHtml(content, document.getElementById('previewTitle').textContent);
+      });
+
+    })();
+  </script>
+
+{% endblock %}

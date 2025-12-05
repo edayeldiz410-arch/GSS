@@ -1,0 +1,83 @@
+[PARSE] Saved tmp_e78f3c74f5b443fd83d29cffac1ca27a_Bon de chargement_1.png OCR_len=312068 ocr_err=None
+[PARSE] parsed_len=0
+[PARSE] Saved tmp_9c6873b7391b4b67aaa096cb9cb93ddb_Bon de chargement_1.png OCR_len=312068 ocr_err=None
+[PARSE] parsed_len=0
+[PARSE] Saved tmp_e2829a61c91e4b48ae908cf632733d85_Bon de chargement_1.png OCR_len=312068 ocr_err=None
+[PARSE] parsed_len=0
+[PARSE] Saved tmp_02dc6c05f84947729d09f764fc612956_Bon de chargement_1.png OCR_len=312068 ocr_err=None
+[PARSE] parsed_len=0
+[PARSE] Saved tmp_6604e5387b684223ab1f1e5e82909b26_Bon de chargement_1.png OCR_len=312068 ocr_err=None
+[PARSE] parsed_len=0
+[PARSE] Saved tmp_b413a04c7bb944999e1503f9a70f6e18_Bon de chargement_1.png OCR_len=312068 ocr_err=None
+[PARSE] parsed_len=0
+[PARSE] Saved tmp_4beccbc13b814e1e96be9f827b4a61ec_Bon de chargement_1.png OCR_len=312068 ocr_err=None
+[PARSE] parsed_len=0
+[CHAT] user=hi context_len=0 reply_len=0
+[CHAT] user=hi context_len=0 reply_len=0
+[CHAT] user=hi$ context_len=0 reply_len=0
+[CHAT] user=FF context_len=0 reply_len=0
+[CHAT] user=gg context_len=0 reply_len=0
+[CHAT] user=hi context_len=0 reply_len=0
+[CHAT] user=hi context_len=0 reply_len=0
+[CHAT] user=hi context_len=0 reply_len=0
+[CHAT] user=hi context_len=0 reply_len=0
+[CHAT] user=hi context_len=0 reply_len=0
+[CHAT] user= context_len=0 reply_len=0
+[CHAT] user=hii
+ context_len=0 reply_len=0
+[CHAT] user= context_len=0 reply_len=0
+[CHAT] user=hi
+ context_len=0 reply_len=0
+[CHAT] user=hi context_len=0 reply_len=0
+[CHAT] user=hi context_len=0 reply_len=77
+[CHAT] user=comment cava context_len=0 reply_len=46
+[CHAT] Saved tmp_857abca2f9de4f1c9fdd3f13c3761efe_modele_de_facture_pdf-798.jpg OCR_len=19133 ocr_err=None
+[CHAT] user=rempli cet facture context_len=0 reply_len=61
+[CHAT] Saved tmp_d0b83730de4945618c09971cb88099c2_modele_de_facture_pdf-798.jpg OCR_len=19133 ocr_err=None
+[CHAT-ERR] model returned empty reply for msg= context_len=0
+[CHAT] user=HELLO context_len=0 reply_len=87
+[CHAT] Saved tmp_ef293dbe53664ece955f1643062761a8_modele_de_facture_pdf-798.jpg OCR_len=19133 ocr_err=None
+[CHAT] user=VOICI LA FACTURE context_len=0 reply_len=96
+[CHAT] Saved tmp_464ac4c5152c4460b98a6f46480bef93_modele_de_facture_pdf-798.jpg OCR_len=19133 ocr_err=None
+[CHAT-ERR] model returned empty reply for msg= context_len=0 saved_files=1
+[CHAT] Saved tmp_e11393078a344e50aaeca42a552997d8_modele_de_facture_pdf-798.jpg OCR_len=19133 ocr_err=None
+[CHAT] user=REMPLI LA FACTURE context_len=0 reply_len=73
+[CHAT] user=hello context_len=0 reply_len=80
+[CHAT] Saved tmp_e13aa263b94b4138998f846fa5f15e19_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT] user=rmeplir la facture images_for_model=1 reply_len=70
+[CHAT] Saved tmp_deafd42c1c424ad9b838a10ac4c662aa_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT] user=voici la facture images_for_model=1 reply_len=129
+[CHAT] Saved tmp_7b34fba5f1bd4c02b78f1cd2861cb942_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT-ERR] model returned empty reply for msg= images_for_model=1
+[CHAT] Saved tmp_98a4285cb34848609136ff980ce0f362_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT] user=reemplir la facture images_for_model=1 reply_len=712
+[CHAT] Saved tmp_0cbf4757a77b486daa6646ae3efaca3b_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT] user=remplir la facture images_for_model=1 reply_len=766
+[CHAT] Saved tmp_1cf196c5c3f04005be5bd29efd2c08d2_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT] user=rempli la facture images_for_model=1 reply_len=681
+[CHAT] Saved tmp_110635775c6c48919d747509e85c22af_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT] user=ajoute la facture au charges images_for_model=1 reply_len=309
+[CHAT] Saved tmp_025db2bf8d5e461aaad04fc4087afbde_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT] user=ajoute cette facture images_for_model=1 reply_len=643
+[CHAT] Saved tmp_18e59c0f140140bcb0be7e8bd57320ed_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT-ERR] model returned empty reply for msg= images_for_model=1
+[CHAT] Saved tmp_dec4a1e78f6e496dab21d5c796b533ce_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] user=hi context_len=0 reply_len=80
+[CHAT] Saved tmp_51bcba93240747f7b99558bce8a61c8f_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Saved tmp_6bd89ab676a84503a38761c178a2f721_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT] user=rempli la facture images_for_model=1 reply_len=706
+[CHAT] Called Grok with 1 images_for_model
+[CHAT] user=voici images_for_model=1 reply_len=680
+[CHAT] Saved tmp_884e360da81d460fa54d3eb61840699c_modele_de_facture_pdf-798.jpg image for model (len=42020)
+[CHAT] Called Grok with 1 images_for_model
+[CHAT] user=rempli la facture images_for_model=1 reply_len=625

@@ -1,0 +1,9 @@
+{% load static %}
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Présence de {{ presence.etudiant.prenom }} {{ presence.etudiant.nom }}</h1>
+  <p><strong>Événement:</strong> {{ presence.calendar_event.titre }}</p>
+  <p><strong>Statut:</strong> {{ presence.get_statut_display }}</p>
+  <p><strong>Remarques:</strong> {{ presence.remarques }}</p>
+  <p><a href="{% url 'presence_edit' presence.pk %}">Modifier</a> | <a href="{% url 'presence_list' %}">Retour</a></p>
+{% endblock %}

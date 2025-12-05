@@ -1,0 +1,10 @@
+{% load static %}
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Supprimer présence</h1>
+  <p>Voulez-vous vraiment supprimer la présence de {{ presence.etudiant.prenom }} {{ presence.etudiant.nom }} pour "{{ presence.calendar_event.titre }}" ?</p>
+  <form method="post">{% csrf_token %}
+    <button class="btn btn-danger" type="submit">Supprimer</button>
+    <a class="btn" href="{% url 'presence_list' %}">Annuler</a>
+  </form>
+{% endblock %}
