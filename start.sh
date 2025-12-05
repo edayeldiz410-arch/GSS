@@ -10,10 +10,10 @@ cd /app/111/school
 
 echo "Running migrations (if any)..."
 # run migrations if DB is reachable; don't fail build if not
-python manage.py migrate --noinput || true
+python manage.py migrate --noinput || echo "Warning: Migration failed, but continuing..."
 
 echo "Collecting static files..."
-python manage.py collectstatic --noinput || true
+python manage.py collectstatic --noinput || echo "Warning: Collectstatic failed, but continuing..."
 
 # Default port fallback
 if [ -z "$PORT" ]; then
@@ -22,4 +22,4 @@ fi
 
 echo "Starting gunicorn on 0.0.0.0:${PORT}"
 exec gunicorn school.wsgi:application --chdir . --bind 0.0.0.0:${PORT} \
-    --workers ${WEB_CONCURRENCY:-2} --access-logfile - --error-logfile - --log-level info
+    --workers ${WEB_CONCURRENCY:-2} --access-logfile - --error-logfile - --log-level info --timeout 120
