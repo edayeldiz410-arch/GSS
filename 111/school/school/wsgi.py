@@ -34,5 +34,13 @@ if container_path not in sys.path:
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'school.settings')
 
+# Debug: print whether `Schoolapp` is importable at process startup; this
+# helps diagnose ModuleNotFoundError issues in container logs.
+try:
+	import Schoolapp  # type: ignore
+	print('DEBUG: Schoolapp import OK', flush=True)
+except Exception as e:
+	print('DEBUG: Schoolapp import FAILED:', repr(e), flush=True)
+
 application = get_wsgi_application()
 
