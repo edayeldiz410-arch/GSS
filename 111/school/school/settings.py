@@ -100,8 +100,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'bd_gss_2025',       # Nom de ta base
         'USER': 'root',                 # Ton utilisateur MySQL
-        'PASSWORD': '',       # Ton mot de passe
-        'HOST': 'localhost',            # Ou l'adresse IP de ton serveur
+        'PASSWORD': 'sadZATFWlYForEocqRZKAWjZjtmGiEVX',       # Ton mot de passe
+        'HOST': 'turntable.proxy.rlwy.net',            # Ou l'adresse IP de ton serveur
         'PORT': '3306',                  # Port MySQL par dÃ©faut
         'OPTIONS': {
             'charset': 'utf8mb4',
