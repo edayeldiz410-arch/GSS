@@ -36,6 +36,7 @@ def health_app(environ, start_response):
 # Try to import Django - if it fails, use health check only
 _django_app = None
 _error_message = None
+_error_traceback = None
 
 try:
 	from django.core.wsgi import get_wsgi_application
@@ -44,8 +45,10 @@ try:
 except Exception as e:
 	print(f'✗ Failed to load Django: {e}', flush=True)
 	import traceback
+	_error_traceback = traceback.format_exc()
 	traceback.print_exc()
 	_error_message = str(e)
+	print(_error_traceback, flush=True)
 
 # Main application wrapper
 def application(environ, start_response):
@@ -62,25 +65,7 @@ def application(environ, start_response):
 		status = '503 Service Unavailable'
 		response_headers = [('Content-Type', 'application/json')]
 		start_response(status, response_headers)
-		error_json = f'{{"error": "Django initialization failed", "message": "{_error_message}"}}'.encode('utf-8')
-		return [error_json]
-	
-# Main application wrapper
-def application(environ, start_response):
-	"""
-	WSGI application that routes to Django if available,
-	or returns a health check response.
-	"""
-	# Health check endpoint - always works
-	if environ.get('PATH_INFO') == '/health/' or environ.get('PATH_INFO') == '/health':
-		return health_app(environ, start_response)
-	
-	# If Django failed to load, return an error
-	if _django_app is None:
-		status = '503 Service Unavailable'
-		response_headers = [('Content-Type', 'application/json')]
-		start_response(status, response_headers)
-		error_json = f'{{"error": "Django initialization failed", "message": "{_error_message}"}}'.encode('utf-8')
+		error_json = f'{{"error": "Django initialization failed", "message": "{_error_message}", "traceback": "{_error_traceback.replace(chr(34), chr(39)) if _error_traceback else \\"\\"}"}}'.encode('utf-8')
 		return [error_json]
 	
 	# Otherwise, use Django

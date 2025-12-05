@@ -1,7 +1,10 @@
 from .models import Utilisateur
 import json, os
 from django.conf import settings
+import logging
+import traceback
 
+logger = logging.getLogger(__name__)
 
 def current_user(request):
     """Inject current_user plus global school info into all template contexts.
@@ -17,7 +20,8 @@ def current_user(request):
         if uid:
             user = Utilisateur.objects.filter(id=uid).first()
             ctx['current_user'] = user
-    except Exception:
+    except Exception as e:
+        logger.exception(f"[context_processors.current_user] Error fetching user from session: {e}")
         ctx['current_user'] = None
 
     # read persisted school info if present (non-blocking)
@@ -28,8 +32,8 @@ def current_user(request):
                 info = json.load(f)
                 ctx['school_name'] = info.get('name', '')
                 ctx['school_logo'] = info.get('logo', '')
-    except Exception:
+    except Exception as e:
         # keep defaults
-        pass
+        logger.warning(f"[context_processors.current_user] Could not load school_info.json: {e}")
 
     return ctx
