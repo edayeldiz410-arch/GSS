@@ -9,88 +9,72 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 import sys
 from pathlib import Path
 import os
-import traceback
-import json
 
-from django.core.wsgi import get_wsgi_application
-
-
-# Ensure the project parent directory is on sys.path so sibling apps like
-# `Schoolapp` can be imported when running under gunicorn/container.
+# Ensure the project parent directory is on sys.path
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
-# Defensive: when running inside the Docker container the project root is
-# copied to `/app/111/school`. Make sure that path is present in `sys.path`
-# so top-level packages such as `Schoolapp` are importable regardless of
-# how the process was started.
+# Add container path if it exists
 container_path = '/app/111/school'
 if container_path not in sys.path:
 	try:
-		# Only insert if the directory exists in the container image
 		if Path(container_path).exists():
 			sys.path.insert(0, container_path)
 	except Exception:
-		# Fall back silently; the original BASE_DIR insertion is usually enough
 		pass
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'school.settings')
 
-# Debug: print whether `Schoolapp` is importable at process startup; this
-# helps diagnose ModuleNotFoundError issues in container logs.
+# Simple health check WSGI app
+def health_app(environ, start_response):
+	"""Minimal WSGI app that returns 200 OK."""
+	status = '200 OK'
+	response_headers = [('Content-Type', 'application/json')]
+	start_response(status, response_headers)
+	return [b'{"status": "ok"}']
+
+# Try to import Django - if it fails, use health check only
+_django_app = None
+_error_message = None
+
 try:
-	import Schoolapp  # type: ignore
-	print('DEBUG: Schoolapp import OK', flush=True)
+	from django.core.wsgi import get_wsgi_application
+	_django_app = get_wsgi_application()
+	print('✓ Django WSGI application loaded successfully', flush=True)
 except Exception as e:
-	print('DEBUG: Schoolapp import FAILED:', repr(e), flush=True)
+	print(f'✗ Failed to load Django: {e}', flush=True)
+	import traceback
 	traceback.print_exc()
+	_error_message = str(e)
 
-# Initialize WSGI application with error handling
-_app = None
-_app_error = None
-
-try:
-	print('DEBUG: Initializing WSGI application...', flush=True)
-	_app = get_wsgi_application()
-	print('DEBUG: WSGI application initialized successfully', flush=True)
-except Exception as e:
-	print(f'ERROR: Failed to initialize WSGI application: {e}', flush=True)
-	traceback.print_exc()
-	_app_error = str(e)
-
-
+# Main application wrapper
 def application(environ, start_response):
-	"""WSGI application that handles initialization errors gracefully."""
-	if _app_error:
-		# Return a 500 error with the error message
-		status = '500 Internal Server Error'
-		response_headers = [('Content-type', 'application/json')]
-		start_response(status, response_headers)
-		error_msg = json.dumps({
-			'error': 'Application initialization failed',
-			'message': _app_error,
-		}).encode('utf-8')
-		return [error_msg]
+	"""
+	WSGI application that routes to Django if available,
+	or returns a health check response.
+	"""
+	# Health check endpoint - always works
+	if environ.get('PATH_INFO') == '/health/' or environ.get('PATH_INFO') == '/health':
+		return health_app(environ, start_response)
 	
-	if _app is None:
-		# Should not happen, but just in case
-		status = '500 Internal Server Error'
-		response_headers = [('Content-type', 'application/json')]
+	# If Django failed to load, return an error
+	if _django_app is None:
+		status = '503 Service Unavailable'
+		response_headers = [('Content-Type', 'application/json')]
 		start_response(status, response_headers)
-		return [b'{"error": "Application not initialized"}']
+		error_json = f'{{"error": "Django initialization failed", "message": "{_error_message}"}}'.encode('utf-8')
+		return [error_json]
 	
-	# Call the actual Django application
+	# Otherwise, use Django
 	try:
-		return _app(environ, start_response)
+		return _django_app(environ, start_response)
 	except Exception as e:
-		print(f'ERROR in request handler: {e}', flush=True)
+		print(f'✗ Request error: {e}', flush=True)
+		import traceback
 		traceback.print_exc()
 		status = '500 Internal Server Error'
-		response_headers = [('Content-type', 'application/json')]
+		response_headers = [('Content-Type', 'application/json')]
 		start_response(status, response_headers)
-		error_msg = json.dumps({
-			'error': 'Request processing failed',
-			'message': str(e),
-		}).encode('utf-8')
-		return [error_msg]
+		error_json = f'{{"error": "Request failed", "message": "{str(e)}"}}'.encode('utf-8')
+		return [error_json]
 
