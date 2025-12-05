@@ -74,10 +74,15 @@ def application(environ, start_response):
 	or returns a health check response.
 	"""
 	path_info = environ.get('PATH_INFO', '')
+	request_method = environ.get('REQUEST_METHOD', 'GET')
+	
+	wsgi_logger.info(f"{'='*60}")
+	wsgi_logger.info(f"[REQUEST] {request_method} {path_info}")
+	wsgi_logger.info(f"{'='*60}")
 	
 	# Health check endpoint - always works
 	if path_info in ('/health/', '/health'):
-		wsgi_logger.debug(f"Health check request: {path_info}")
+		wsgi_logger.info(f"Health check request: {path_info}")
 		return health_app(environ, start_response)
 	
 	# If Django failed to load, return an error
@@ -96,26 +101,30 @@ def application(environ, start_response):
 	
 	# Otherwise, use Django
 	try:
-		wsgi_logger.debug(f"Handling request: {environ.get('REQUEST_METHOD')} {path_info}")
+		wsgi_logger.info(f"[DJANGO] Processing {request_method} {path_info}...")
 		result = _django_app(environ, start_response)
-		wsgi_logger.debug(f"Request completed successfully")
+		wsgi_logger.info(f"[DJANGO] Request completed successfully")
 		return result
 	except Exception as e:
-		wsgi_logger.exception(f"✗ Request error for {path_info}: {e}")
+		wsgi_logger.exception(f"[ERROR] Request failed for {path_info}: {e}")
 		print(f'✗ Request error: {e}', flush=True)
 		import traceback
 		error_trace = traceback.format_exc()
 		print(error_trace, flush=True)
-		wsgi_logger.error(f"Request traceback: {error_trace}")
+		wsgi_logger.error(f"[ERROR] Request traceback:\n{error_trace}")
 		
 		status = '500 Internal Server Error'
 		response_headers = [('Content-Type', 'application/json')]
-		start_response(status, response_headers)
+		try:
+			start_response(status, response_headers)
+		except Exception as start_resp_err:
+			wsgi_logger.error(f"[ERROR] start_response failed: {start_resp_err}")
+		
 		# Use json.dumps to safely encode error details
 		error_dict = {
 			'error': 'Request failed',
 			'message': str(e),
-			'trace': error_trace
+			'trace': error_trace[:1000]  # Limit trace length
 		}
 		error_json = json.dumps(error_dict).encode('utf-8')
 		return [error_json]
