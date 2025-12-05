@@ -42,6 +42,12 @@ if (BASE_DIR / 'db.sqlite3').exists() or os.environ.get('DEV') == '1':
 
 ALLOWED_HOSTS=['*',]
 
+# CSRF trusted origins for Railway
+CSRF_TRUSTED_ORIGINS = [
+    'https://geniesystemeschool.up.railway.app',
+    'https://*.railway.app',
+]
+
 
 # Application definition
 

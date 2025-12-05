@@ -33,5 +33,8 @@ ENV PYTHONPATH="/app/111:$PYTHONPATH"
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
+# Expose port (Railway will provide PORT via environment variable)
+EXPOSE 8080
+
 # Use startup script to run migrations/collectstatic and start gunicorn
 ENTRYPOINT ["/app/start.sh"]
