@@ -53,11 +53,6 @@ echo "Binding to: 0.0.0.0:${PORT}"
 echo "=============================="
 echo ""
 
-echo "=== Starting Application ==="
-echo "Binding to: 0.0.0.0:${PORT} (and [::]:${PORT} for IPv6)"
-echo "=============================="
-echo ""
-
 # Start gunicorn
 # Bind to 0.0.0.0 to accept connections from Railway's proxy
 exec gunicorn \
