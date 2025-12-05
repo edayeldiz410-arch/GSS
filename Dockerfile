@@ -14,11 +14,11 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Install Python dependencies
-COPY 111/requirements.txt .
+COPY 111/requirements.txt /app/requirements.txt
 RUN python -m venv /opt/venv && \
     . /opt/venv/bin/activate && \
     pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r /app/requirements.txt
 
 # Copy project
 COPY . .
@@ -27,16 +27,5 @@ COPY . .
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# Start command (adjust path if manage.py is under 111/)
-
-
-
-
-
+# Start command
 CMD ["gunicorn", "111.school.school.wsgi", "--bind", "0.0.0.0:8080"]
-
-
-
-
-
-
