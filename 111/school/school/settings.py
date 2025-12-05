@@ -108,6 +108,8 @@ DATABASES = {
             'charset': 'utf8mb4',
             'conn_max_age': 600,  # Connection pooling
             'connect_timeout': 10,
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'autocommit': True,
         },
     }
 }

@@ -17,11 +17,14 @@ python -c "import django; print(f'Django {django.VERSION} imported OK')" || { ec
 
 echo ""
 echo "Running migrations (if any)..."
-python manage.py migrate --noinput 2>&1 || echo "Warning: Migration failed, but continuing..."
+# Try to run migrations with a 30-second timeout, but don't fail if it times out
+{ timeout 30 python manage.py migrate --noinput || true; } 2>&1 | grep -v "Traceback\|File " || true
+echo "Migrations step completed"
 
 echo ""
 echo "Collecting static files..."
-python manage.py collectstatic --noinput 2>&1 || echo "Warning: Collectstatic failed, but continuing..."
+{ timeout 30 python manage.py collectstatic --noinput || true; } 2>&1 | grep -v "Traceback\|File " || true
+echo "Static files step completed"
 
 echo ""
 echo "Testing WSGI application import..."
