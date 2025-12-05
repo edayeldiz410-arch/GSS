@@ -98,14 +98,25 @@ WSGI_APPLICATION = 'school.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # Support both Railway (MYSQL*) and custom (DB_*) environment variable naming
+# Helper function to safely get and clean environment variables
+def get_env_var(*keys, default=''):
+    """Get environment variable from multiple possible keys, strip whitespace."""
+    for key in keys:
+        value = os.environ.get(key)
+        if value:
+            # Strip whitespace and take only the first part (in case of formatting issues)
+            cleaned = value.strip().split()[0] if value.strip() else default
+            return cleaned
+    return default
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('MYSQLDATABASE') or os.environ.get('MYSQL_DATABASE') or os.environ.get('DB_NAME', 'railway'),
-        'USER': os.environ.get('MYSQLUSER') or os.environ.get('MYSQL_USER') or os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('MYSQLPASSWORD') or os.environ.get('MYSQL_ROOT_PASSWORD') or os.environ.get('DB_PASSWORD', 'sadZATFWlYForEocqRZKAWjZjtmGiEVX'),
-        'HOST': os.environ.get('MYSQLHOST') or os.environ.get('MYSQL_HOST') or os.environ.get('DB_HOST', 'mysql.railway.internal'),
-        'PORT': os.environ.get('MYSQLPORT') or os.environ.get('MYSQL_PORT') or os.environ.get('DB_PORT', '3306'),
+        'NAME': get_env_var('MYSQLDATABASE', 'MYSQL_DATABASE', 'DB_NAME', default='railway'),
+        'USER': get_env_var('MYSQLUSER', 'MYSQL_USER', 'DB_USER', default='root'),
+        'PASSWORD': get_env_var('MYSQLPASSWORD', 'MYSQL_ROOT_PASSWORD', 'DB_PASSWORD', default='sadZATFWlYForEocqRZKAWjZjtmGiEVX'),
+        'HOST': get_env_var('MYSQLHOST', 'MYSQL_HOST', 'DB_HOST', default='mysql.railway.internal'),
+        'PORT': get_env_var('MYSQLPORT', 'MYSQL_PORT', 'DB_PORT', default='3306'),
         'OPTIONS': {
             'charset': 'utf8mb4',
             'conn_max_age': 600,  # Connection pooling
