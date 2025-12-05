@@ -65,7 +65,14 @@ def application(environ, start_response):
 		status = '503 Service Unavailable'
 		response_headers = [('Content-Type', 'application/json')]
 		start_response(status, response_headers)
-		error_json = f'{{"error": "Django initialization failed", "message": "{_error_message}", "traceback": "{_error_traceback.replace(chr(34), chr(39)) if _error_traceback else \\"\\"}"}}'.encode('utf-8')
+		# Use json.dumps to safely encode error message
+		import json
+		error_dict = {
+			'error': 'Django initialization failed',
+			'message': str(_error_message),
+			'traceback': str(_error_traceback) if _error_traceback else ''
+		}
+		error_json = json.dumps(error_dict).encode('utf-8')
 		return [error_json]
 	
 	# Otherwise, use Django
@@ -79,7 +86,13 @@ def application(environ, start_response):
 		status = '500 Internal Server Error'
 		response_headers = [('Content-Type', 'application/json')]
 		start_response(status, response_headers)
-		# Include traceback in response for debugging
-		error_json = f'{{"error": "Request failed", "message": "{str(e)}", "trace": "{error_trace.replace(chr(34), chr(39))}"}}'.encode('utf-8')
+		# Use json.dumps to safely encode error details
+		import json
+		error_dict = {
+			'error': 'Request failed',
+			'message': str(e),
+			'trace': error_trace
+		}
+		error_json = json.dumps(error_dict).encode('utf-8')
 		return [error_json]
 
