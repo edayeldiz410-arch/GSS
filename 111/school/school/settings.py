@@ -121,8 +121,8 @@ DATABASES = {
         'NAME': get_env_var('MYSQLDATABASE', 'MYSQL_DATABASE', 'DB_NAME', default='railway'),
         'USER': get_env_var('MYSQLUSER', 'MYSQL_USER', 'DB_USER', default='root'),
         'PASSWORD': get_env_var('MYSQLPASSWORD', 'MYSQL_ROOT_PASSWORD', 'DB_PASSWORD', default='sadZATFWlYForEocqRZKAWjZjtmGiEVX'),
-        'HOST': get_env_var('MYSQLHOST', 'MYSQL_HOST', 'DB_HOST', default='mysql.railway.internal'),
-        'PORT': get_env_var('MYSQLPORT', 'MYSQL_PORT', 'DB_PORT', default='3306'),
+        'HOST': get_env_var('MYSQLHOST', 'MYSQL_HOST', 'DB_HOST', default='turntable.proxy.rlwy.net'),
+        'PORT': get_env_var('MYSQLPORT', 'MYSQL_PORT', 'DB_PORT', default='11338'),
         'CONN_MAX_AGE': 600,  # Connection pooling - at database level, not in OPTIONS
         'OPTIONS': {
             'charset': 'utf8mb4',
