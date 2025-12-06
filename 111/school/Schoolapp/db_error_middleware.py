@@ -1,3 +1,4 @@
+# Schoolapp/db_error_middleware.py
 """
 Middleware to handle database connection errors gracefully.
 """
@@ -5,7 +6,7 @@ import json
 import logging
 import traceback
 from django.http import JsonResponse
-from django.db import OperationalError, DatabaseError
+from django.db import OperationalError, DatabaseError, connection
 from django.utils.deprecation import MiddlewareMixin
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,13 @@ class DatabaseErrorMiddleware(MiddlewareMixin):
             error_trace = traceback.format_exc()
             logger.error(f"[DatabaseErrorMiddleware] DB Error: {exception}\n{error_trace}")
             
-            # Check if this is an API request
+            # Try to close and reset the connection
+            try:
+                connection.close()
+            except Exception as e:
+                logger.warning(f"[DatabaseErrorMiddleware] Could not close connection: {e}")
+            
+            # Return appropriate response based on request type
             if request.path.startswith('/api/') or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
                 return JsonResponse({
                     'error': 'Database connection unavailable',
@@ -30,13 +37,12 @@ class DatabaseErrorMiddleware(MiddlewareMixin):
                     'status': 503,
                 }, status=503)
             else:
-                # For HTML requests, return a simple HTML error page
+                # For HTML requests, still return JSON for AJAX/fetch requests
                 return JsonResponse({
                     'error': 'Database connection unavailable',
                     'message': 'The application is starting up. Please refresh in a few moments.',
+                    'status': 503,
                 }, status=503)
         
-        # Log any unhandled exception for debugging
-        logger.exception(f"[DatabaseErrorMiddleware] Unhandled exception in request: {exception}")
-        
+        # Don't catch non-database exceptions
         return None
