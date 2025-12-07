@@ -1,0 +1,962 @@
+{% extends 'base.html' %}
+{% load static currency_filters %}
+{% block title %}Paiements - GénieSchool{% endblock %}
+{% block content %}
+<style>
+  /* Modal / Add-payment visual improvements */
+  /* simplified, clean header */
+  .modal-header{ display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:8px; background: linear-gradient(180deg,#ffffff,#fbfbff); color:#0f172a; margin:-24px -24px 12px -24px; border-bottom:1px solid rgba(15,23,42,0.04); }
+  .modal-header .title { font-weight:800; font-size:16px; }
+  .modal-sub { font-size:13px; opacity:0.95 }
+  .progress-wrap{ width:100%; background: rgba(255,255,255,0.12); height:10px; border-radius:999px; overflow:hidden; margin-top:8px }
+  .progress-bar{ height:100%; background:linear-gradient(90deg,#34d399,#10b981); width:0%; transition: width .35s cubic-bezier(.2,.9,.3,1) }
+  .ins-row{ display:flex; justify-content:space-between; gap:12px; padding:8px 0; align-items:center }
+  .ins-row{ transition: transform .18s ease, background .18s ease }
+  .ins-row:hover{ transform: translateX(6px); background: linear-gradient(90deg, rgba(79,70,229,0.03), rgba(16,185,129,0.02)); border-radius:6px; padding-left:6px; padding-right:6px }
+  .ins-name{ color:#0f172a; font-weight:700 }
+  .ins-remaining{ color:#6b7280 }
+  .pill{ display:inline-block; padding:6px 10px; border-radius:999px; font-weight:700 }
+  .pill-green{ background:#dcfce7; color:#065f46 }
+  .pill-orange{ background:#fff7ed; color:#7c2d12 }
+  .pill-red{ background:#fee2e2; color:#7f1d1d }
+  .btn-primary.animated{ transition: transform .12s ease, box-shadow .12s ease; }
+  .btn-primary.animated:active{ transform:translateY(1px) scale(.995); }
+  .fade-anim{ transition: opacity .25s ease, transform .25s ease }
+  /* decorative animations */
+  .add-payment-card{ transform: translateY(0); animation: cardPop .28s cubic-bezier(.2,.9,.3,1); border: 1px solid rgba(15,23,42,0.04); }
+  @keyframes cardPop{ from{ opacity:0; transform: translateY(8px) scale(.995) } to{ opacity:1; transform: translateY(0) scale(1) } }
+  /* simplified header: static subtle accent - remove animated gradient */
+  .modal-header{ background: linear-gradient(180deg,#ffffff,#fbfbff); }
+  @keyframes headerGradient{ 0%{ background-position:0% 50% } 50%{ background-position:100% 50% } 100%{ background-position:0% 50% } }
+  /* pulse animation still available for other elements if needed */
+  .pulse{ animation: pulseGlow 1.6s ease-in-out infinite; }
+  @keyframes pulseGlow{ 0%{ box-shadow:0 8px 20px rgba(16,24,40,0.08) } 50%{ box-shadow:0 16px 36px rgba(16,24,40,0.12) } 100%{ box-shadow:0 8px 20px rgba(16,24,40,0.08) } }
+  .progress-bar{ position:relative; transition: width .45s cubic-bezier(.2,.85,.3,1), background .25s ease; height:12px; border-radius:999px; box-shadow:0 6px 18px rgba(16,24,40,0.08) }
+  /* vibrant progress gradient */
+  .progress-bar{ background: linear-gradient(90deg,#ffb86b,#ff7ab6,#7c3aed,#06b6d4); }
+  /* avatar removed from header — styles omitted */
+  /* popup card overall color accents */
+  .add-payment-card{ background: linear-gradient(180deg,#ffffff,#fbfbff); border-left:6px solid rgba(124,58,237,0.06); }
+  .add-payment-card .btn-primary{ background: linear-gradient(90deg,#06b6d4,#7c3aed); color:#fff; box-shadow:0 8px 24px rgba(124,58,237,0.08); border: none }
+  .add-payment-card .btn-secondary{ background:transparent; color:#374151; border:1px solid rgba(15,23,42,0.06) }
+  /* subtle shimmer overlay on progress */
+  .progress-bar::after{ content:''; position:absolute; top:0; left:0; height:100%; width:100%; pointer-events:none; background:linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.0) 40%, rgba(255,255,255,0.06) 100%); mix-blend-mode:overlay; animation: shimmer 2.5s linear infinite }
+  @keyframes shimmer{ 0%{ transform:translateX(-100%) } 100%{ transform:translateX(100%) } }
+  /* Table UI inspired by the provided example */
+  .table-card{ background:var(--bg-card, #fff);border-radius:12px;padding:18px;box-shadow:0 8px 30px rgba(11,22,43,0.06);} 
+  .tbl { width:100%; border-collapse:collapse; }
+  .tbl thead th{ text-align:left; padding:14px; font-size:12px; color:#6b7280; text-transform:uppercase; font-weight:700; }
+   .tbl tbody td{ padding:12px 18px; border-top:1px solid #f3f4f6; vertical-align:middle; }
+   .tbl { table-layout: fixed; }
+  .ref { font-family:monospace; color:var(--accent-1, #4f46e5); font-weight:700; }
+  .name { font-weight:700; color:var(--text-primary, #0f172a); }
+  .muted { color:var(--text-secondary, #6b7280); font-size:13px; }
+  .amount { font-weight:700; color:var(--text-primary, #0f172a); }
+  /* badges use semantic classes but rely on variables so dark mode can override in base.css */
+  .badge-paid{ background:var(--badge-paid-bg, #dcfce7); color:var(--badge-paid-text, #059669); padding:6px 10px; border-radius:999px; font-weight:700; }
+  .badge-partial{ background:var(--badge-partial-bg, #fff7ed); color:var(--badge-partial-text, #b45309); padding:6px 10px; border-radius:999px; font-weight:700; }
+  .badge-due{ background:var(--badge-due-bg, #fee2e2); color:var(--badge-due-text, #b91c1c); padding:6px 10px; border-radius:999px; font-weight:700; }
+  .right { text-align:right; }
+  /* indigo themed animated search (matches payment ID color #4f46e5) */
+  .search-wrapper { position: relative; }
+  .search-wrapper::before{ content:''; position:absolute; inset: -4px; border-radius:14px; background: linear-gradient(90deg, rgba(79,70,229,0.06), rgba(99,102,241,0.04)); opacity:0; transition: opacity .18s ease, transform .18s ease; pointer-events:none; }
+  .search-input { padding-left: 44px; padding-right: 44px; border-radius: 10px; border: 1px solid rgba(79,70,229,0.12); transition: box-shadow .18s ease, transform .12s ease, border-color .12s ease, background .18s ease; background: linear-gradient(180deg,#ffffff,#f8fafc); position:relative; z-index:1; }
+  .search-input:focus{ outline: none; box-shadow: 0 12px 40px rgba(79,70,229,0.12); transform: translateY(-3px); border-color: rgba(79,70,229,0.3); }
+  .search-wrapper.focused::before{ opacity:1; transform:translateY(-2px); }
+  .search-icon{ position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#6366f1; font-size:18px; pointer-events:none; z-index:2; }
+  .search-wrapper.focused .search-icon{ color:#4f46e5; transform:translateY(-50%) scale(1.02); }
+  .ins-clear{ position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:18px; color:#6b7280; cursor:pointer; display:none; z-index:2; padding:6px; border-radius:999px; transition: transform .12s ease, opacity .12s ease; }
+  .ins-clear.show{ display:block; opacity:1; color:#4f46e5; }
+  .ins-clear:hover{ background: rgba(79,70,229,0.06); transform: translateY(-1px); }
+  .ins-clear:active{ transform:scale(.92); }
+  .ripple{ position:absolute; width:12px; height:12px; border-radius:50%; background:rgba(79,70,229,0.12); transform:scale(0); opacity:0.9; pointer-events:none; }
+  .search-input::placeholder{ color:#9ca3af; transition: opacity .2s ease, transform .25s ease; }
+  .search-wrapper.focused .search-input::placeholder{ opacity:0.7; transform:translateY(-1px); }
+  /* print button styling (indigo themed) */
+  .print-btn{ display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(79,70,229,0.14); color:#4f46e5; background:transparent; padding:6px 8px; border-radius:8px; cursor:pointer; font-weight:700; font-size:13px; }
+  .print-btn:hover{ background: rgba(79,70,229,0.06); transform:translateY(-1px); }
+  .print-btn .material-icons{ font-size:18px; }
+  /* print header small logo / QR for payment slips */
+  .payments-print-logo, .payments-print-qr { display:none; }
+  @media print {
+    .payments-print-logo { display:block; position:absolute; left:8mm; top:8mm; width:36mm; height:auto; object-fit:contain; }
+    .payments-print-qr { display:block; position:absolute; right:8mm; top:8mm; width:28mm; height:28mm; object-fit:contain; background:#fff; }
+    /* hide action buttons in header when printing (they remain visible on screen) */
+    .no-print-header-actions { display:none; }
+  }
+  
+  /* Mobile Responsive Styles */
+  @media (max-width: 640px) {
+    main {
+      padding: 1rem !important;
+    }
+    
+    header.flex {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 1rem !important;
+      margin-bottom: 1.5rem !important;
+    }
+    
+    h1 {
+      font-size: 1.75rem !important;
+    }
+    
+    .btn-primary {
+      width: 100% !important;
+      padding: 14px 20px !important;
+      font-size: 15px !important;
+      border-radius: 12px !important;
+    }
+    
+    /* Search bar */
+    .search-wrapper {
+      width: 100% !important;
+      margin-bottom: 1rem !important;
+    }
+    
+    .search-input {
+      padding: 14px 44px !important;
+      font-size: 16px !important; /* Prevent zoom on iOS */
+    }
+    
+    /* Table card */
+    .table-card {
+      padding: 0 !important;
+      border-radius: 16px !important;
+      overflow: hidden !important;
+    }
+    
+    /* Table adjustments */
+    .min-w-full {
+      min-width: 0 !important;
+    }
+    
+    .min-w-full thead {
+      display: none !important;
+    }
+    
+    .min-w-full tbody tr {
+      display: block !important;
+      margin-bottom: 16px !important;
+      padding: 16px !important;
+      border-radius: 16px !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+      background: linear-gradient(135deg, rgba(79,70,229,0.03), rgba(99,102,241,0.03)) !important;
+      border-left: 4px solid #4f46e5 !important;
+      animation: paymentCardSlide 0.4s ease-out backwards;
+    }
+    
+    @keyframes paymentCardSlide {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    /* Stagger animations */
+    .min-w-full tbody tr:nth-child(1) { animation-delay: 0.1s; }
+    .min-w-full tbody tr:nth-child(2) { animation-delay: 0.2s; }
+    .min-w-full tbody tr:nth-child(3) { animation-delay: 0.3s; }
+    .min-w-full tbody tr:nth-child(4) { animation-delay: 0.4s; }
+    
+    .min-w-full tbody tr:hover {
+      transform: translateY(-4px) !important;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+    }
+    
+    .min-w-full tbody td {
+      display: flex !important;
+      justify-content: space-between !important;
+      padding: 12px 0 !important;
+      border: none !important;
+      align-items: center !important;
+    }
+    
+    .min-w-full tbody td::before {
+      content: attr(data-label);
+      font-weight: 700;
+      color: #6b7280;
+      margin-right: 12px;
+      flex: 0 0 40%;
+      font-size: 0.9rem;
+    }
+    
+    .min-w-full tbody td:first-child::before {
+      content: "ID";
+    }
+    
+    .min-w-full tbody td:nth-child(2)::before {
+      content: "Nom / Prénom";
+    }
+    
+    .min-w-full tbody td:nth-child(3)::before {
+      content: "Date";
+    }
+    
+    .min-w-full tbody td:nth-child(4)::before {
+      content: "Montant";
+    }
+    
+    .min-w-full tbody td:nth-child(5)::before {
+      content: "Ancien solde";
+    }
+    
+    .min-w-full tbody td:nth-child(6)::before {
+      content: "Solde";
+    }
+    
+    .min-w-full tbody td:nth-child(7)::before {
+      content: "Statut";
+    }
+    
+    /* Badge adjustments */
+    .badge-paid,
+    .badge-partial,
+    .badge-due {
+      padding: 8px 12px !important;
+      font-size: 0.85rem !important;
+      border-radius: 12px !important;
+    }
+    
+    /* Print button */
+    .print-btn {
+      padding: 8px 12px !important;
+      font-size: 0.85rem !important;
+    }
+    
+    /* Modal adjustments */
+    .add-payment-card,
+    #editPaiementModal > div {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      border-radius: 20px 20px 0 0 !important;
+      max-height: 90vh !important;
+      overflow-y: auto !important;
+    }
+    
+    .modal-backdrop {
+      align-items: flex-end !important;
+      padding: 0 !important;
+    }
+    
+    /* Form inputs */
+    input, select {
+      font-size: 16px !important; /* Prevent zoom on iOS */
+      padding: 14px 16px !important;
+      border-radius: 12px !important;
+    }
+    
+    /* Touch feedback */
+    .min-w-full tbody tr:active {
+      transform: scale(0.98) !important;
+    }
+  }
+</style>
+<main>
+  <header class="flex justify-between items-center mb-4" style="position:relative;">
+    <!-- small logo and QR only visible in print (positioned absolute inside header area) -->
+    {% if school_logo %}
+      <img src="{{ school_logo }}" alt="Logo" class="payments-print-logo" />
+    {% else %}
+      <img src="{% static 'school_logo.png' %}" alt="Logo" class="payments-print-logo" />
+    {% endif %}
+    <img id="payments-page-qr" alt="QR" class="payments-print-qr" />
+    <h1 class="text-2xl font-bold">Paiements étudiants</h1>
+    <div class="no-print-header-actions">
+      <button id="openAddPaiementBtn" class="btn-primary py-2 px-4 rounded-lg flex items-center font-semibold"><span class="material-icons mr-2">add</span>Ajouter</button>
+    </div>
+  </header>
+ 
+
+  <!-- Search bar: animated, neutral tones -->
+  <div class="flex items-center justify-between mb-4">
+    <div class="search-wrapper w-1/3">
+      <span class="material-icons search-icon">search</span>
+      <input id="paySearch" type="text" placeholder="Rechercher un paiement (nom, référence, montant...)" class="search-input w-full shadow-sm py-2" />
+      <button id="payClearBtn" class="ins-clear" title="Effacer">&times;</button>
+    </div>
+    <div></div>
+  </div>
+  <div class="table-card overflow-x-auto bg-white rounded-xl shadow">
+    <table class="min-w-full text-sm text-left text-gray-700">
+      <colgroup>
+        <col style="width:6%">
+        <col style="width:34%">
+        <col style="width:12%">
+        <col style="width:18%">
+        <col style="width:14%">
+        <col style="width:10%">
+        <col style="width:6%">
+      </colgroup>
+      <thead class="bg-gray-100 text-gray-600 uppercase text-xs font-semibold">
+        <tr>
+          <th class="px-6 py-3">ID</th>
+          <th class="px-6 py-3">NOM / PRÉNOM</th>
+          <th class="px-6 py-3">Date</th>
+          <th class="px-6 py-3 text-right">Montant</th>
+          <th class="px-6 py-3 text-right">Ancien solde</th>
+          <th class="px-6 py-3 text-right">Solde</th>
+          <th class="px-6 py-3">Statut</th>
+        </tr>
+      </thead>
+      <tbody id="paymentsTbody">
+        {% for p in paiements %}
+  <tr class="border-b payment-row student-row" data-id="{{ p.id }}" data-ref="{{ p.ref }}" data-etudiant-id="{{ p.etudiant_id }}" data-formation-id="{{ p.formation_id }}" data-nom="{{ p.nom }}" data-prenom="{{ p.prenom }}" data-date="{{ p.date }}" data-montant="{{ p.montant }}" data-ancien="{{ p.ancien_solde }}" data-apres="{{ p.apres_solde }}" data-statut="{{ p.statut }}" data-mode="{{ p.mode_paiement }}" data-numero-cheque="{{ p.numero_cheque }}" data-date-cheque="{{ p.date_cheque }}" data-compte-bancaire="{{ p.compte_bancaire }}">
+          <td class="px-6 py-4 font-mono text-sm"><span class="ref">{{ p.ref }}</span></td>
+          <td class="px-6 py-4 font-semibold">{{ p.nom }} {{ p.prenom }}</td>
+          <td class="px-6 py-4 text-gray-500">{{ p.date }}</td>
+          <td class="px-6 py-4 text-right font-semibold amount">{{ p.montant|floatformat:2 }} DZD</td>
+          <td class="px-6 py-4 text-right text-gray-500">{% if p.ancien_solde is not None %}{% if p.ancien_solde|floatformat:2 == '0.00' %}0.00 DZD{% else %}{{ p.ancien_solde|signed }} DZD{% endif %}{% else %}-{% endif %}</td>
+          <td class="px-6 py-4 text-right text-gray-500">{% if p.apres_solde is not None %}{% if p.apres_solde|floatformat:2 == '0.00' %}0.00 DZD{% else %}{{ p.apres_solde|signed }} DZD{% endif %}{% else %}-{% endif %}</td>
+          <td class="px-6 py-4">
+            <div style="display:flex;align-items:center;gap:10px;">
+            <div>
+            {% if p.apres_solde == 0 %}
+              <span class="badge-paid">Réglé</span>
+            {% elif p.apres_solde and p.ancien_solde is not None and p.apres_solde < p.ancien_solde %}
+              <span class="badge-partial">Partiellement réglé</span>
+            {% else %}
+              <span class="badge-due">Non réglé</span>
+            {% endif %}
+            </div>
+            <div>
+              <a href="{% url 'paiement_receipt' p.id %}" target="_blank" class="print-btn" title="Imprimer le reçu">
+                <span class="material-icons" aria-hidden="true">print</span>
+              </a>
+            </div>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="px-6 py-6 text-center text-gray-500">Aucun paiement enregistré.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+  // Populate header QR with the current page URL when printing so the QR fits the small header area
+  (function(){
+    function setHeaderQr(){
+      try{
+        var el = document.getElementById('payments-page-qr');
+        if(!el) return;
+        var url = window.location.href;
+        var q = 'https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=' + encodeURIComponent(url) + '&chld=L|1';
+        el.src = q;
+      }catch(e){}
+    }
+    function clearHeaderQr(){ var el = document.getElementById('payments-page-qr'); if(el) el.src = ''; }
+    if (window.matchMedia) {
+      window.addEventListener('beforeprint', setHeaderQr);
+      window.addEventListener('afterprint', clearHeaderQr);
+    }
+    // fallback: set on print button clicks (some browsers don't fire beforeprint reliably)
+    document.querySelectorAll('.print-btn').forEach(function(b){ b.addEventListener('click', setHeaderQr); });
+
+    // Print handler: fetch the server-rendered receipt and print it in a hidden iframe.
+    // This prevents any inline preview from showing in the current page and
+    // prints only the receipt page (as requested).
+    document.querySelectorAll('.print-btn').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        try{
+          setHeaderQr();
+          var a = btn.closest('a') || btn;
+          var href = a.getAttribute ? a.getAttribute('href') : null;
+          if(!href) return;
+          e.preventDefault();
+          // Fetch the receipt HTML (same-origin) and print inside a hidden iframe
+          fetch(href, { credentials: 'same-origin' }).then(function(res){
+            if(!res.ok) throw new Error('Network response not ok');
+            return res.text();
+          }).then(function(html){
+            var iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed'; iframe.style.right='0'; iframe.style.bottom='0'; iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0'; iframe.style.visibility='hidden';
+            document.body.appendChild(iframe);
+            var idoc = iframe.contentWindow.document;
+            // Write the fetched HTML directly into the iframe so it renders identically
+            idoc.open(); idoc.write(html); idoc.close();
+            // allow a short delay for resources to load, then print and remove iframe
+            setTimeout(function(){
+              try{ iframe.contentWindow.focus(); iframe.contentWindow.print(); }catch(e){ console.warn('print iframe failed', e); }
+              setTimeout(function(){ try{ iframe.remove(); }catch(e){} }, 600);
+            }, 500);
+          }).catch(function(err){
+            console.warn('Fetch receipt failed, falling back to open:', err);
+            // fallback: open new tab/window so user can print manually
+            var w = window.open(href, '_blank'); if(w) try{ w.focus(); }catch(e){}
+          });
+        }catch(err){ console.warn('print handler error', err); }
+      });
+    });
+  })();
+</script>
+
+<script>
+  // Register a small service worker to enable offline use of the /paiements/ page.
+  (function(){
+    if(!('serviceWorker' in navigator)) return;
+    // register our SW served at the project root so we can scope it to /paiements/
+    const swUrl = '{% url "sw_paiements" %}';
+    navigator.serviceWorker.register(swUrl, { scope: '/paiements/' }).then(function(reg){
+      console.log('Paiements service worker registered', reg);
+    }).catch(function(err){
+      console.warn('Service worker registration failed for paiements page:', err);
+    });
+
+    // Optional: listen for online/offline status and show a console message
+    window.addEventListener('online', () => console.log('Online'));
+    window.addEventListener('offline', () => console.log('Offline - using cached paiements page'));
+  })();
+</script>
+
+<!-- Add Payment Modal -->
+<div id="addPaiementModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+  <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-lg p-6 add-payment-card">
+    <div class="modal-header" style="align-items:center;">
+      <div style="display:flex;flex-direction:column;flex:1;">
+        <div class="title" style="color:var(--text-primary,#0f172a)">Ajouter un paiement</div>
+        <div class="modal-sub" style="color:var(--text-secondary,#6b7280)">Sélectionnez l'étudiant, le montant et le mode. Aperçu du solde et distribution ci-dessous.</div>
+        <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+          <div id="paiementHeaderName" style="font-weight:600;color:var(--text-primary,#0f172a)"></div>
+          <div id="paiementHeaderStatus" class="pill pill-green" style="display:none;font-size:12px;padding:4px 8px"></div>
+        </div>
+      </div>
+    </div>
+    <form id="addPaiementForm">
+      {% csrf_token %}
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Student search with photo preview (visible) + hidden id field (submitted) -->
+        <div class="col-span-2 relative">
+          <input id="paiementEtudiantSearch" type="text" placeholder="Rechercher un étudiant..." class="border px-3 py-2 rounded w-full" autocomplete="off" />
+          <input type="hidden" name="etudiant" id="paiementEtudiantSelect" value="" />
+          <div id="paiementStudentDropdown" class="hidden bg-white border rounded shadow mt-1 max-h-48 overflow-auto" style="position:absolute;left:0;right:0;z-index:60;"></div>
+        </div>
+        <select name="formation" id="paiementFormationSelect" class="border px-3 py-2 rounded col-span-2">
+          <option value="">-- Choisir formation (optionnel) --</option>
+          {% for f in formations %}
+          <option value="{{ f.id }}">{{ f.nom }}</option>
+          {% endfor %}
+        </select>
+        <!-- Student formations + prices preview -->
+        <div class="col-span-2 border rounded p-3" id="paiementFormationsPreview" style="display:none;">
+          <div class="text-sm text-gray-600 mb-2">Formations inscrites pour cet étudiant:</div>
+          <ul id="paiementFormationsList" class="mb-2" style="max-height:160px;overflow:auto;margin:0;padding-left:16px;"></ul>
+          <div id="paiementDistributionDetails" style="margin-top:8px;">
+            <div class="flex justify-between items-center">
+              <div class="text-sm text-gray-600">Solde total restant:</div>
+              <div id="paiementRemainingPreview" class="font-semibold text-red-600">0.00 DZD</div>
+            </div>
+            <!-- individual distribution rows will be appended under the list -->
+          </div>
+        </div>
+        <!-- Progress always visible below (even when preview hidden) -->
+        <div class="col-span-2 mt-3">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div class="text-sm text-gray-600">Progrès du paiement</div>
+            <div id="paiementRemaining" class="font-semibold text-red-600">0.00 DZD</div>
+          </div>
+          <div class="progress-wrap" aria-hidden="false"><div id="paiementProgress" class="progress-bar"></div></div>
+        </div>
+  <div class="col-span-2" style="display:flex;gap:10px;align-items:center;">
+    <input name="montant" id="paiementMontant" placeholder="Montant" class="border px-3 py-2 rounded" />
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-left:8px;">
+      <input type="checkbox" id="paiementIncludeInscription" name="include_inscription_fee" value="1" />
+      Ajouter frais d'inscription (500 DZD)
+    </label>
+  </div>
+  <!-- date is auto-set server-side for new payments -->
+  <input type="hidden" name="date_paiement" value="" />
+  <!-- hidden field to carry inscription id when user picks an inscription-specific option -->
+  <input type="hidden" name="inscription" id="paiementInscriptionField" value="" />
+
+  <!-- Payment mode (Espèces, Chèque, Virement) and conditional inputs -->
+  <div class="col-span-2 mt-2">
+    <label for="paiementModeSelect" class="text-sm font-semibold">Mode de paiement</label>
+    <select name="mode_paiement" id="paiementModeSelect" class="border px-3 py-2 rounded w-full">
+      <option value="">-- Choisir mode --</option>
+  <option value="especes" selected>Espèces</option>
+      <option value="cheque">Chèque</option>
+      <option value="virement">Virement</option>
+    </select>
+  </div>
+
+  <div id="paiementChequeFields" class="col-span-2 mt-2" style="display:none;">
+    <input name="numero_cheque" id="paiementNumeroCheque" placeholder="Numéro du chèque" class="border px-3 py-2 rounded w-full" />
+    <input name="date_cheque" id="paiementDateCheque" placeholder="Date du chèque (YYYY-MM-DD)" class="border px-3 py-2 rounded w-full mt-2" />
+  </div>
+
+  <div id="paiementVirementFields" class="col-span-2 mt-2" style="display:none;">
+    <input name="compte_bancaire" id="paiementCompteBancaire" placeholder="Compte bancaire (IBAN/Numéro)" class="border px-3 py-2 rounded w-full" />
+  </div>
+
+  <input type="hidden" name="remarques" value="" />
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button type="button" onclick="closeAddPaiement()" class="btn-secondary py-2 px-4 rounded mr-2">Annuler</button>
+        <button type="submit" class="btn-primary py-2 px-4 rounded">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Payment Modal -->
+<div id="editPaiementModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+  <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-lg p-6">
+    <h2 class="text-xl font-semibold mb-4">Modifier le paiement</h2>
+  <form id="editPaiementForm">
+      {% csrf_token %}
+      <input type="hidden" name="id" />
+      <div class="grid grid-cols-2 gap-3">
+        <select name="etudiant" class="border px-3 py-2 rounded col-span-2">
+          <option value="">-- Choisir étudiant --</option>
+          {% for s in students %}
+          <option value="{{ s.id }}">{{ s.prenom }} {{ s.nom }}</option>
+          {% endfor %}
+        </select>
+        <select name="formation" class="border px-3 py-2 rounded col-span-2">
+          <option value="">-- Choisir formation (optionnel) --</option>
+          {% for f in formations %}
+          <option value="{{ f.id }}">{{ f.nom }}</option>
+          {% endfor %}
+        </select>
+        <input name="montant" placeholder="Montant" class="border px-3 py-2 rounded" />
+    <input name="date_paiement" placeholder="YYYY-MM-DD" class="border px-3 py-2 rounded" />
+    <input name="mode_paiement" placeholder="Mode (Espèces, Virement...)" class="border px-3 py-2 rounded col-span-2" />
+    <!-- statut is auto-calculated server-side -->
+    <input type="hidden" name="statut" value="" />
+    <input type="hidden" name="remarques" value="" />
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button type="button" onclick="closeEditPaiement()" class="btn-secondary py-2 px-4 rounded mr-2">Annuler</button>
+        <button type="submit" class="btn-primary py-2 px-4 rounded">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie('csrftoken');
+
+  // Helpers: robust currency parsing/formatting using cents to avoid float rounding issues
+  const currencyFormatter = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function formatCurrency(v){ try{ return currencyFormatter.format(Number(v||0)) + ' DZD'; }catch(e){ return '0.00 DZD'; } }
+  function toCents(v){ const n = Number(String(v||0).replace(/\s+/g,'').replace(',','.')); if(isNaN(n)) return 0; return Math.round(n*100); }
+  function fromCents(c){ return (Number(c)/100).toFixed(2); }
+  function safeNumber(v){ const n = Number(String(v||0).replace(/[^0-9,\-\.,]/g,'').replace(',','.')); return isNaN(n) ? 0 : n; }
+
+  const addModal = document.getElementById('addPaiementModal');
+  const editModal = document.getElementById('editPaiementModal');
+  document.getElementById('openAddPaiementBtn').addEventListener('click', ()=> addModal.classList.remove('hidden'));
+  function closeAddPaiement(){ addModal.classList.add('hidden'); }
+  function closeEditPaiement(){ editModal.classList.add('hidden'); }
+
+  document.getElementById('addPaiementForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    // client-side validation to avoid obvious errors
+    const studentId = document.getElementById('paiementEtudiantSelect').value;
+    const montantRaw = (document.getElementById('paiementMontant').value || '').trim();
+    const montantCents = toCents(montantRaw);
+    if(!studentId){ alert('Veuillez sélectionner un étudiant avant d\'enregistrer le paiement.'); return; }
+    if(montantCents <= 0){ alert('Veuillez indiquer un montant supérieur à 0.'); return; }
+    // prepare UI state
+    const submitBtn = e.target.querySelector('[type="submit"]');
+    const origText = submitBtn ? submitBtn.textContent : null;
+    if(submitBtn){ submitBtn.disabled = true; submitBtn.classList.add('animated'); submitBtn.textContent = 'Enregistrement…'; }
+    const data = new FormData(e.target);
+    // send
+    fetch('{% url "paiements_add" %}', {
+      method: 'POST',
+      mode: 'same-origin',
+      credentials: 'same-origin',
+      headers: {
+        'X-CSRFToken': csrftoken,
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: data
+    }).then(r=>r.json()).then(json=>{
+      if (json && json.success){ location.reload(); }
+      else { alert('Erreur: '+(json && json.error? json.error : 'Erreur serveur')); }
+    }).catch(()=>alert('Erreur réseau'))
+    .finally(()=>{ if(submitBtn){ submitBtn.disabled = false; if(origText) submitBtn.textContent = origText; submitBtn.classList.remove('animated'); } });
+  });
+
+  // Toggle conditional fields for payment mode in the add modal
+  (function(){
+    const modeSelect = document.getElementById('paiementModeSelect');
+    const chequeFields = document.getElementById('paiementChequeFields');
+    const virementFields = document.getElementById('paiementVirementFields');
+    function updateModeFields(val){
+      if (!val) { chequeFields.style.display='none'; virementFields.style.display='none'; return; }
+      if (val === 'cheque') { chequeFields.style.display='block'; virementFields.style.display='none'; }
+      else if (val === 'virement') { chequeFields.style.display='none'; virementFields.style.display='block'; }
+      else { chequeFields.style.display='none'; virementFields.style.display='none'; }
+    }
+    if (modeSelect) modeSelect.addEventListener('change', function(){ updateModeFields(this.value); });
+  })();
+
+  // Build a small studentsData array for the autocomplete (id, name, photo)
+  const studentsData = [
+    {% for s in students %}
+      {
+        id: "{{ s.id }}",
+        name: "{{ s.prenom|escapejs }} {{ s.nom|escapejs }}",
+  photo: "{% if s.photo %}{{ s.photo|escapejs }}{% else %}{% static 'images/happy.gif' %}{% endif %}"
+      }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  // Autocomplete dropdown with photo preview for student search (fills hidden select id)
+  (function(){
+    function tryPrefixMedia(path){
+      if(!path) return '';
+      const p = String(path || '');
+      if (p.startsWith('http') || p.startsWith('/')) return p;
+      try{ return ("{{ MEDIA_URL|default:'' }}"||'') + p; }catch(e){ return p; }
+    }
+    const searchInput = document.getElementById('paiementEtudiantSearch');
+    const hiddenSelect = document.getElementById('paiementEtudiantSelect');
+    const dropdown = document.getElementById('paiementStudentDropdown');
+    function hideDropdown(){
+      dropdown.classList.add('hidden');
+      dropdown.innerHTML = '';
+      highlightedIndex = -1;
+      try{ const prev = document.getElementById('comboHoverPreview'); if(prev){ prev.style.display='none'; prev.remove(); } }catch(e){ }
+    }
+    function showDropdown(){ dropdown.classList.remove('hidden'); }
+    function renderItem(s){
+      const div = document.createElement('div');
+      div.className = 'flex items-center gap-2 px-3 py-2 hover:bg-gray-100 cursor-pointer';
+      // attach id/name so keyboard selection can reference the currently visible list
+  if(s && s.id) div.dataset.id = s.id;
+  if(s && s.name) div.dataset.name = s.name;
+  // index set by updateDropdown when appended
+      const img = document.createElement('img');
+  img.src = tryPrefixMedia(s.photo) || '{% static "images/happy.gif" %}';
+      img.alt = s.name || '';
+      img.style.width = '36px'; img.style.height = '36px'; img.style.objectFit = 'cover'; img.style.borderRadius = '999px';
+      const span = document.createElement('div');
+      span.innerHTML = `<div class="font-semibold">${s.name}</div>`;
+      div.appendChild(img);
+      div.appendChild(span);
+      div.addEventListener('click', function(){
+        hiddenSelect.value = s.id;
+        searchInput.value = s.name;
+        // trigger change so existing logic fetches student details
+        hiddenSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        hideDropdown();
+      });
+      return div;
+    }
+
+    let highlightedIndex = -1;
+    function highlightDropdown(index){
+      const children = Array.from(dropdown.children);
+      children.forEach((c,i)=> c.classList.toggle('bg-gray-100', i===index));
+      highlightedIndex = index;
+      // do not auto-scroll; user requested arrow keys to select entries rather than triggering scroll
+    }
+  function chooseIndex(index){
+      const children = Array.from(dropdown.children);
+      if(index>=0 && children[index]){
+        const el = children[index];
+        const id = el.dataset.id || null;
+        const name = el.dataset.name || (el.textContent || '').trim();
+        if(id){ hiddenSelect.value = id; searchInput.value = name; hiddenSelect.dispatchEvent(new Event('change', { bubbles: true })); }
+    try{ const prev = document.getElementById('comboHoverPreview'); if(prev){ prev.style.display='none'; prev.remove(); } }catch(e){}
+    hideDropdown();
+      }
+    }
+
+    function updateDropdown(q){
+      dropdown.innerHTML = '';
+      // If empty query (focus), show full list; otherwise filter
+      const listToShow = (!q) ? studentsData.slice(0,200) : studentsData.filter(s => (s.name||'').toLowerCase().includes(q.toLowerCase()));
+      if (!listToShow || listToShow.length === 0){ hideDropdown(); return; }
+  listToShow.slice(0, 200).forEach(s => dropdown.appendChild(renderItem(s)));
+      // attach hover preview handlers similar to inscriptions combo
+      Array.from(dropdown.children).forEach(function(child, idx){
+        child.addEventListener('mouseenter', function(){
+          try{
+            highlightDropdown(idx);
+            const imgSrc = child.querySelector('img') ? child.querySelector('img').src : '';
+            let prev = document.getElementById('comboHoverPreview');
+            if(!prev){ prev = document.createElement('img'); prev.id='comboHoverPreview'; prev.style.position='absolute'; prev.style.width='220px'; prev.style.height='220px'; prev.style.borderRadius='8px'; prev.style.objectFit='cover'; prev.style.boxShadow='0 10px 30px rgba(0,0,0,0.35)'; prev.style.zIndex=99999; prev.style.pointerEvents='none'; document.body.appendChild(prev); }
+            prev.src = imgSrc || '{% static "images/happy.gif" %}';
+            const rect = child.getBoundingClientRect();
+            const preferredLeft = rect.right + 12;
+            const maxRight = window.innerWidth - 8;
+            const previewWidth = parseInt(prev.style.width,10) || 220;
+            let left = preferredLeft;
+            if (preferredLeft + previewWidth > maxRight) { left = rect.left - 12 - previewWidth; if (left < 8) left = 8; }
+            let top = rect.top;
+            const maxTop = window.innerHeight - (parseInt(prev.style.height,10) || 220) - 8;
+            if (top > maxTop) top = maxTop; if (top < 8) top = 8;
+            prev.style.left = left + 'px'; prev.style.top = top + 'px'; prev.style.display='block';
+          }catch(e){/* ignore */}
+        });
+        child.addEventListener('mouseleave', function(){ const prev = document.getElementById('comboHoverPreview'); if(prev) prev.style.display='none'; });
+        // enable click/hover keyboard highlight mapping
+        child.addEventListener('mousemove', function(){ highlightDropdown(idx); });
+      });
+  showDropdown();
+  // default highlight first item for keyboard navigation (but do not auto-select)
+  if (dropdown.children.length > 0) highlightDropdown(0);
+    }
+    if (searchInput){
+      searchInput.addEventListener('input', function(){ updateDropdown(this.value.trim()); });
+      searchInput.addEventListener('focus', function(){ updateDropdown(this.value.trim()); });
+      document.addEventListener('click', function(e){ if (!dropdown.contains(e.target) && e.target !== searchInput) hideDropdown(); });
+      // keyboard nav for dropdown: arrows only move highlight, Enter confirms selection
+      searchInput.addEventListener('keydown', function(e){
+        // ensure dropdown is visible and populated when arrows pressed
+        if((e.key === 'ArrowDown' || e.key === 'ArrowUp') && dropdown.classList.contains('hidden')){
+          updateDropdown(this.value.trim());
+        }
+        const count = dropdown.children.length;
+        if(!count) { if(e.key === 'Escape') hideDropdown(); return; }
+        if(e.key === 'ArrowDown'){
+          e.preventDefault();
+          let next;
+          if (highlightedIndex < 0) next = 0;
+          else next = Math.min(highlightedIndex + 1, count - 1);
+          highlightDropdown(next);
+        }
+        else if(e.key === 'ArrowUp'){
+          e.preventDefault();
+          let prev;
+          if (highlightedIndex < 0) prev = 0;
+          else prev = Math.max(highlightedIndex - 1, 0);
+          highlightDropdown(prev);
+        }
+        else if(e.key === 'Enter'){ e.preventDefault(); // Enter selects highlighted
+          if(highlightedIndex>=0) chooseIndex(highlightedIndex);
+        }
+        else if(e.key === 'Escape'){ hideDropdown(); }
+      });
+    }
+  })();
+
+  // When etudiant is selected, fetch details (formations + remaining fees) and populate preview
+  (function(){
+    const etuSelect = document.getElementById('paiementEtudiantSelect');
+    const formationsList = document.getElementById('paiementFormationsList');
+    const preview = document.getElementById('paiementFormationsPreview');
+    const remainingEl = document.getElementById('paiementRemaining');
+    const montantInput = document.getElementById('paiementMontant');
+    const inscriptionField = document.getElementById('paiementInscriptionField');
+    const progressBar = document.getElementById('paiementProgress');
+    let currentInscriptions = [];
+    let currentRemainingCents = 0;
+
+    function updateProgress(paidCents, totalCents){
+      try{
+        if(!progressBar) return;
+        const pct = totalCents <= 0 ? 0 : Math.max(0, Math.min(100, Math.round((paidCents/totalCents)*100)));
+        progressBar.style.width = pct + '%';
+        if (pct >= 100) progressBar.style.background = 'linear-gradient(90deg,#10b981,#34d399)';
+        else if (pct >= 50) progressBar.style.background = 'linear-gradient(90deg,#f59e0b,#f97316)';
+        else progressBar.style.background = 'linear-gradient(90deg,#ef4444,#f97316)';
+      }catch(e){ }
+    }
+
+    function updateRemainingDisplay(){
+      const paidCents = toCents(montantInput && montantInput.value ? montantInput.value : 0);
+      const includeInscription = (document.getElementById('paiementIncludeInscription') && document.getElementById('paiementIncludeInscription').checked);
+      const feeCents = includeInscription ? toCents(500) : 0;
+      const totalCents = (currentInscriptions.reduce((s,it)=> s + (toCents(it.remaining||0)), 0) || currentRemainingCents) + feeCents;
+      const afterCents = Math.max(0, totalCents - paidCents);
+      remainingEl.textContent = formatCurrency(fromCents(afterCents));
+      updateProgress(Math.min(paidCents, totalCents), totalCents);
+    }
+
+    // Greedy distributor using cents to avoid rounding issues
+    function distributeAmount(amount){
+      const paidCents = toCents(amount);
+      const includeInscription = (document.getElementById('paiementIncludeInscription') && document.getElementById('paiementIncludeInscription').checked);
+      const working = (currentInscriptions && currentInscriptions.length>0) ? currentInscriptions.map(x=> ({...x, remainingCents: toCents(x.remaining||0)})) : [];
+      if (includeInscription) working.push({ inscription: 'REG_FEE', formation: 'Frais inscription', remainingCents: toCents(500) });
+      let remToApply = paidCents;
+      const selIns = inscriptionField && inscriptionField.value ? String(inscriptionField.value) : '';
+      // apply to selected inscription first
+      if (selIns){
+        const t = working.find(w=> String(w.inscription) === String(selIns));
+        if (t){ const take = Math.min(remToApply, t.remainingCents); t.afterCents = t.remainingCents - take; remToApply -= take; }
+      }
+      // then greedy apply to remaining inscriptions in order
+      for(const w of working){ if (selIns && String(w.inscription) === String(selIns)) continue; if (remToApply<=0){ w.afterCents = w.remainingCents; continue; } const take = Math.min(remToApply, w.remainingCents); w.afterCents = w.remainingCents - take; remToApply -= take; }
+
+      // update DOM rows
+      Array.from(formationsList.children).forEach((li)=>{
+        const insId = li.dataset.inscription || '';
+        const obj = working.find(rr=> String(rr.inscription) === String(insId));
+        if (obj){ const remEl = li.querySelector('.inscription-remaining'); if (remEl) remEl.textContent = formatCurrency(fromCents(obj.afterCents !== undefined ? obj.afterCents : obj.remainingCents)); }
+      });
+      // update virtual fee row
+      try{
+        const feeObj = working.find(w=> String(w.inscription) === 'REG_FEE');
+        const feeRowId = 'virtualInscriptionFeeRow';
+        let feeRow = document.getElementById(feeRowId);
+        if (feeObj){
+          if (!feeRow){ feeRow = document.createElement('div'); feeRow.id = feeRowId; feeRow.style.marginTop = '8px'; feeRow.innerHTML = `<div class="ins-row"><div class="ins-name">Frais d'inscription</div><div class="ins-remaining"><span class="pill pill-orange">Solde: </span> <span class="font-semibold inscription-remaining">${formatCurrency(fromCents(feeObj.afterCents !== undefined ? feeObj.afterCents : feeObj.remainingCents))}</span></div></div>`; formationsList.parentNode.appendChild(feeRow); }
+          else { const span = feeRow.querySelector('.inscription-remaining'); if (span) span.textContent = formatCurrency(fromCents(feeObj.afterCents !== undefined ? feeObj.afterCents : feeObj.remainingCents)); }
+        } else { if (feeRow) feeRow.remove(); }
+      }catch(e){ }
+      // final total remaining
+      const totalAfter = working.reduce((s,w)=> s + (w.afterCents !== undefined ? Number(w.afterCents) : Number(w.remainingCents)), 0);
+      remainingEl.textContent = formatCurrency(fromCents(totalAfter));
+      updateProgress(Math.min(paidCents, (working.reduce((s,w)=> s + w.remainingCents, 0) || 0)), (working.reduce((s,w)=> s + w.remainingCents, 0) || 0));
+    }
+
+    if (etuSelect){
+      etuSelect.addEventListener('change', function(){
+          const id = this.value;
+          if(!id){
+            preview.style.display='none'; formationsList.innerHTML=''; currentRemainingCents = 0; remainingEl.textContent = formatCurrency(0); currentInscriptions = [];
+            try{ const headerName = document.getElementById('paiementHeaderName'); const headerStatus = document.getElementById('paiementHeaderStatus'); if(headerName) headerName.textContent=''; if(headerStatus){ headerStatus.style.display='none'; headerStatus.textContent=''; } }catch(e){}
+            return;
+          }
+          fetch(`/etudiants/${id}/json/`, { credentials: 'same-origin' }).then(r=>r.json()).then(json=>{
+          if (!json.success){ throw new Error('no data'); }
+          const etu = json.etudiant || {};
+          formationsList.innerHTML = '';
+          const formationSelect = document.getElementById('paiementFormationSelect');
+          formationSelect.innerHTML = '<option value="">-- Choisir formation (optionnel) --</option>';
+          currentInscriptions = [];
+          (etu.inscriptions_details || []).forEach(it => {
+            const remaining = (typeof it.remaining !== 'undefined' && it.remaining !== null) ? Number(it.remaining) : 0;
+            const li = document.createElement('li');
+            li.style.listStyle = 'none'; li.style.padding = '6px 0'; li.dataset.inscription = it.id || ''; li.dataset.remaining = remaining;
+            li.innerHTML = `<div class="ins-row"><div class="ins-name">${(it.formation || '(sans nom)')}</div><div class="ins-remaining"><span class="text-sm text-gray-500">Solde: </span><span class="font-semibold inscription-remaining">${formatCurrency(remaining.toFixed ? Number(remaining).toFixed(2) : remaining)}</span></div></div>`;
+            formationsList.appendChild(li);
+            const opt = document.createElement('option'); opt.value = it.formation_id || it.formation || ''; opt.textContent = it.formation + (it.prix_total ? (' — ' + Number(it.prix_total).toFixed(2) + ' DZD') : ''); if (it.remaining !== null && typeof it.remaining !== 'undefined') opt.dataset.remaining = it.remaining; if (it.id) opt.dataset.inscription = it.id; formationSelect.appendChild(opt);
+            currentInscriptions.push({inscription: it.id, formation: it.formation, remaining: remaining});
+          });
+          let totalRem = currentInscriptions.reduce((s,it)=> s + Number(it.remaining||0), 0);
+          currentRemainingCents = toCents(totalRem || parseFloat(etu.remaining_fees || 0));
+          remainingEl.textContent = formatCurrency(fromCents(currentRemainingCents || 0));
+          preview.style.display = 'block';
+          // update header avatar and student name
+          try{
+            const headerName = document.getElementById('paiementHeaderName');
+            const headerStatus = document.getElementById('paiementHeaderStatus');
+            if(headerName) headerName.textContent = (etu.prenom? (etu.prenom + ' ') : '') + (etu.nom || '');
+            if(headerStatus){ headerStatus.style.display='inline-block'; const remainingDisplay = currentRemainingCents ? formatCurrency(fromCents(currentRemainingCents)) : '0.00 DZD'; headerStatus.textContent = 'Solde: ' + remainingDisplay; headerStatus.className = currentRemainingCents <= 0 ? 'pill pill-green' : 'pill pill-orange'; }
+          }catch(e){}
+          updateRemainingDisplay();
+          formationSelect.addEventListener('change', function(){ const sel = formationSelect.options[formationSelect.selectedIndex]; try{ if (inscriptionField) inscriptionField.value = (sel && sel.dataset && sel.dataset.inscription) ? sel.dataset.inscription : ''; }catch(e){} updateRemainingDisplay(); });
+          Array.from(formationsList.children).forEach(li=> li.addEventListener('click', function(){ try{ const id = li.dataset.inscription || ''; if(inscriptionField) inscriptionField.value = id; for(const o of formationSelect.options){ if(o.dataset && o.dataset.inscription == id){ o.selected = true; break; } } }catch(e){} updateRemainingDisplay(); }));
+        }).catch(err=>{ console.warn('Could not fetch etudiant details', err); preview.style.display='none'; formationsList.innerHTML=''; currentRemainingCents = 0; remainingEl.textContent = formatCurrency(0); currentInscriptions = []; });
+      });
+    }
+
+    if (montantInput){ montantInput.addEventListener('input', function(){ updateRemainingDisplay(); distributeAmount(this.value); }); }
+    // Ensure checkbox changes immediately update progress/distribution
+    const includeCheckbox = document.getElementById('paiementIncludeInscription');
+    if (includeCheckbox){ includeCheckbox.addEventListener('change', function(){ try{ updateRemainingDisplay(); distributeAmount(montantInput ? montantInput.value : 0); }catch(e){} }); }
+  })();
+
+      document.querySelectorAll('.payment-row').forEach(tr => {
+        tr.addEventListener('dblclick', function(){
+          // open edit modal with prefilled data
+          const form = document.getElementById('editPaiementForm');
+          const idInput = form.querySelector('[name="id"]');
+          const etuSelect = form.querySelector('[name="etudiant"]');
+          const formationSelect = form.querySelector('[name="formation"]');
+          const montantInput = form.querySelector('[name="montant"]');
+          const dateInput = form.querySelector('[name="date_paiement"]');
+
+          if (idInput) idInput.value = tr.dataset.id || '';
+          if (etuSelect) etuSelect.value = tr.dataset.etudiantId || '';
+          if (formationSelect) formationSelect.value = tr.dataset.formationId || '';
+          if (montantInput) montantInput.value = tr.dataset.montant || '';
+          if (dateInput) dateInput.value = tr.dataset.date || '';
+
+          // prefill mode-specific fields if present on the row dataset
+          try{
+            const modeField = form.querySelector('[name="mode_paiement"]');
+            const numeroField = form.querySelector('[name="numero_cheque"]');
+            const dateChequeField = form.querySelector('[name="date_cheque"]');
+            const compteField = form.querySelector('[name="compte_bancaire"]');
+            const mode = tr.dataset.mode || tr.dataset.modePaiement || '';
+            if (modeField) modeField.value = mode;
+            if (numeroField) numeroField.value = tr.dataset.numeroCheque || tr.dataset.numero_cheque || '';
+            if (dateChequeField) dateChequeField.value = tr.dataset.dateCheque || tr.dataset.date_cheque || '';
+            if (compteField) compteField.value = tr.dataset.compteBancaire || tr.dataset.compte_bancaire || '';
+            // Ensure modal shows conditional fields according to mode
+            const addModeSelect = document.getElementById('paiementModeSelect');
+            const addChequeFields = document.getElementById('paiementChequeFields');
+            const addVirementFields = document.getElementById('paiementVirementFields');
+            if (addModeSelect){ addModeSelect.value = mode; if (mode === 'cheque'){ addChequeFields.style.display='block'; addVirementFields.style.display='none'; } else if (mode === 'virement'){ addChequeFields.style.display='none'; addVirementFields.style.display='block'; } else { addChequeFields.style.display='none'; addVirementFields.style.display='none'; } }
+          }catch(e){ /* ignore */ }
+
+          editModal.classList.remove('hidden');
+        });
+      });
+
+  document.getElementById('editPaiementForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const data = new FormData(e.target);
+    fetch('{% url "paiements_edit" %}', {
+      method: 'POST',
+      mode: 'same-origin',
+      credentials: 'same-origin',
+      headers: {
+        'X-CSRFToken': csrftoken,
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: data
+    }).then(r=>r.json()).then(json=>{
+      if (json.success){ location.reload(); } else { alert('Erreur: '+(json.error||'')); }
+    }).catch(()=>alert('Erreur réseau'));
+  });
+
+  // Payments search micro-interactions + filtering
+  (function(){
+    const input = document.getElementById('paySearch');
+    const clearBtn = document.getElementById('payClearBtn');
+    const wrapper = document.querySelector('.search-wrapper');
+    function updateClear(){ if(input && input.value && clearBtn) clearBtn.classList.add('show'); else if(clearBtn) clearBtn.classList.remove('show'); }
+    function filterPayments(){
+      if(!input) return;
+      const q = input.value.trim().toLowerCase();
+      document.querySelectorAll('#paymentsTbody tr').forEach(tr=>{
+        const nom = ((tr.dataset.nom||'') + ' ' + (tr.dataset.prenom||'')).toLowerCase();
+        const ref = (tr.dataset.ref||'').toLowerCase();
+        const montant = (tr.dataset.montant||'').toString().toLowerCase();
+        const date = (tr.dataset.date||'').toLowerCase();
+        const textOk = q === '' || nom.includes(q) || ref.includes(q) || montant.includes(q) || date.includes(q);
+        tr.style.display = textOk ? '' : 'none';
+      });
+    }
+    if(input){ input.addEventListener('input', function(){ updateClear(); filterPayments(); }); input.addEventListener('focus', ()=> wrapper && wrapper.classList.add('focused')); input.addEventListener('blur', ()=> wrapper && wrapper.classList.remove('focused')); }
+    if(clearBtn){ clearBtn.addEventListener('click', function(e){ e.preventDefault(); const r=document.createElement('span'); r.className='ripple'; clearBtn.appendChild(r); r.style.left='50%'; r.style.top='50%'; r.style.transform='translate(-50%,-50%) scale(0)'; requestAnimationFrame(()=>{ r.style.transform='translate(-50%,-50%) scale(10)'; r.style.opacity='0'; r.style.transition='transform .45s ease, opacity .45s ease'; }); setTimeout(()=>{ try{ clearBtn.removeChild(r); }catch(e){} },500); input.value=''; input.focus(); updateClear(); filterPayments(); }); }
+    updateClear();
+  })();
+
+  // Server-rendered receipt links are used now; client-side print handler removed.
+</script>
+{% endblock %}

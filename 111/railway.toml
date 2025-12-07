@@ -1,0 +1,20 @@
+[build]
+  builder = "NIXPACKS"
+
+[[nixpacks.providers]]
+  nixPkgs = ['python3', 'python3-pip']
+
+[nixpacks.phases.setup]
+  nixPkgs = ['python3', 'python3-pip']
+
+[nixpacks.phases.build]
+  cmds = [
+    'pip install -r requirements.txt',
+    'cd school && python manage.py collectstatic --noinput'
+  ]
+
+[nixpacks.phases.run]
+  cmds = [
+    'cd school && python manage.py migrate',
+    'gunicorn school.wsgi --bind 0.0.0.0:$PORT'
+  ]

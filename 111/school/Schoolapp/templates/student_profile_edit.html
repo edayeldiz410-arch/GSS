@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GénieSchool - Compléter mon Profil</title>
+    {% load static %}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f5f5f7;
+            color: #333;
+        }
+
+        body {
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        /* Progress Steps */
+        .steps-container {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .step {
+            flex: 1;
+            background: #e0e0e0;
+            padding: 12px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .step.completed {
+            background: #4caf50;
+            color: white;
+        }
+
+        /* Form */
+        .form-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+        }
+
+        .form-card h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-card p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: #999;
+        }
+
+        /* Two Column Grid */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .form-row .form-group {
+            margin-bottom: 0;
+        }
+
+        /* File Upload */
+        .file-upload {
+            position: relative;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            background: rgba(102, 126, 234, 0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .file-upload input[type="file"] {
+            display: none;
+        }
+
+        .file-upload-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .file-upload-text {
+            color: #666;
+            font-size: 13px;
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 14px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .alert-info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-left: 4px solid #1976d2;
+        }
+
+        .alert-success {
+            background: #e8f5e9;
+            color: #388e3c;
+            border-left: 4px solid #388e3c;
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        /* Progress Indicator */
+        .completion-indicator {
+            background: #f0f0f0;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .completion-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .completion-bar {
+            background: #e0e0e0;
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .completion-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .container {
+                margin: 10px auto;
+                padding: 12px;
+            }
+
+            .form-card {
+                padding: 16px;
+            }
+
+            .form-card h2 {
+                font-size: 18px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                padding: 12px;
+            }
+
+            .steps-container {
+                gap: 0;
+            }
+
+            .step {
+                padding: 10px 4px;
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>Mon Profil</h1>
+        <a href="/dashboard/" class="back-btn">← Retour</a>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Steps -->
+        <div class="steps-container">
+            <div class="step completed">
+                <div style="margin-bottom: 4px;">✓</div>
+                <div>Info Perso</div>
+            </div>
+            <div class="step active">
+                <div style="margin-bottom: 4px;">2</div>
+                <div>Documents</div>
+            </div>
+            <div class="step">
+                <div style="margin-bottom: 4px;">3</div>
+                <div>Vérification</div>
+            </div>
+        </div>
+
+        <!-- Completion Indicator -->
+        <div class="completion-indicator">
+            <div class="completion-label">Profil Complété</div>
+            <div class="completion-bar">
+                <div class="completion-fill" style="width: {{ completion }}%;"></div>
+            </div>
+            <div style="font-size: 12px; color: #999; margin-top: 8px;">{{ completion }}% - {% if completion == 100 %}Profil complet!{% elif completion >= 50 %}Presque terminé{% else %}À compléter{% endif %}</div>
+        </div>
+
+        <!-- Info Alert -->
+        <div class="alert alert-info">
+            ℹ️ Complétez votre profil pour pouvoir vous inscrire aux formations
+        </div>
+
+        <!-- Form Card 1: Infos Personnelles -->
+        <div class="form-card">
+            <h2>✓ Informations Personnelles</h2>
+            <p>Complétez vos informations personnelles</p>
+
+            <form method="post" action="">
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="nom">Nom</label>
+                        <input type="text" id="nom" name="nom" value="{{ etudiant.nom|default:user.nom }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="prenom">Prénom</label>
+                        <input type="text" id="prenom" name="prenom" value="{{ etudiant.prenom|default:user.prenom }}" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" value="{{ user.email }}" disabled>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="date_naissance">Date de Naissance</label>
+                        <input type="date" id="date_naissance" name="date_naissance" value="{% if etudiant.date_naissance %}{{ etudiant.date_naissance|date:'Y-m-d' }}{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label for="lieu_naissance">Lieu de Naissance</label>
+                        <input type="text" id="lieu_naissance" name="lieu_naissance" placeholder="Ville, Pays" value="{{ etudiant.lieu_naissance|default:'' }}">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sexe">Sexe</label>
+                        <select id="sexe" name="sexe">
+                            <option value="">-- Sélectionnez --</option>
+                            <option value="M" {% if etudiant.sexe == 'M' %}selected{% endif %}>Masculin</option>
+                            <option value="F" {% if etudiant.sexe == 'F' %}selected{% endif %}>Féminin</option>
+                            <option value="NB" {% if etudiant.sexe == 'NB' %}selected{% endif %}>Non binaire</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="nin">NIN / Numéro d'Identité</label>
+                        <input type="text" id="nin" name="nin" value="{{ etudiant.nin|default:'' }}" placeholder="Ex: 12345678901234">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="telephone">Téléphone</label>
+                    <input type="tel" id="telephone" name="telephone" value="{{ etudiant.telephone|default:etudiant.mobile|default:'' }}" placeholder="+225 XX XX XX XX">
+                </div>
+
+                <div class="form-group">
+                    <label for="adresse">Adresse Complète</label>
+                    <textarea id="adresse" name="adresse" placeholder="Votre adresse (rue, ville, pays)">{{ etudiant.adresse|default:'' }}</textarea>
+                </div>
+            </form>
+        </div>
+
+        <!-- Form Card 2: Documents -->
+        <div class="form-card">
+            <h2>📄 Documents</h2>
+            <p>Uploadez vos documents pour vérification</p>
+
+            <form method="post" action="" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label>Extrait de Naissance</label>
+                    <div class="file-upload" onclick="document.getElementById('birth_cert').click()">
+                        <div class="file-upload-icon">📄</div>
+                        <div class="file-upload-text">
+                            <strong>Cliquez pour uploader</strong><br>
+                            ou glissez-déposez votre fichier
+                        </div>
+                        <input type="file" id="birth_cert" name="birth_cert" accept="image/*,.pdf">
+                    </div>
+                    <div style="font-size: 12px; color: #999; margin-top: 8px;">Format: JPG, PNG, PDF • Max 5MB</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Carte d'Identité</label>
+                    <div class="file-upload" onclick="document.getElementById('id_card').click()">
+                        <div class="file-upload-icon">🆔</div>
+                        <div class="file-upload-text">
+                            <strong>Cliquez pour uploader</strong><br>
+                            ou glissez-déposez votre fichier
+                        </div>
+                        <input type="file" id="id_card" name="id_card" accept="image/*,.pdf">
+                    </div>
+                    <div style="font-size: 12px; color: #999; margin-top: 8px;">Format: JPG, PNG, PDF • Max 5MB</div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Form Card 3: Situation Professionnelle -->
+        <div class="form-card">
+            <h2>💼 Situation Professionnelle</h2>
+            <p>Parlez-nous de votre profil professionnel</p>
+
+            <form method="post" action="">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="situation">Statut Professionnel</label>
+                    <select id="situation" name="situation">
+                        <option value="">-- Sélectionnez --</option>
+                        <option value="etudiant" {% if etudiant.situation_professionnelle == 'etudiant' %}selected{% endif %}>Étudiant(e)</option>
+                        <option value="emploi" {% if etudiant.situation_professionnelle == 'emploi' %}selected{% endif %}>En emploi</option>
+                        <option value="sans_emploi" {% if etudiant.situation_professionnelle == 'sans_emploi' %}selected{% endif %}>Sans emploi</option>
+                        <option value="freelance" {% if etudiant.situation_professionnelle == 'freelance' %}selected{% endif %}>Freelance</option>
+                        <option value="entrepreneur" {% if etudiant.situation_professionnelle == 'entrepreneur' %}selected{% endif %}>Entrepreneur</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="niveau_etude">Niveau d'Étude</label>
+                    <select id="niveau_etude" name="niveau_etude">
+                        <option value="">-- Sélectionnez --</option>
+                        <option value="bac" {% if etudiant.niveau_etude == 'bac' %}selected{% endif %}>Bac</option>
+                        <option value="bac+2" {% if etudiant.niveau_etude == 'bac+2' %}selected{% endif %}>Bac+2</option>
+                        <option value="bac+3" {% if etudiant.niveau_etude == 'bac+3' %}selected{% endif %}>Licence (Bac+3)</option>
+                        <option value="bac+5" {% if etudiant.niveau_etude == 'bac+5' %}selected{% endif %}>Master (Bac+5)</option>
+                        <option value="autre" {% if etudiant.niveau_etude == 'autre' %}selected{% endif %}>Autre</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+
+        <!-- Buttons -->
+        <div class="button-group">
+            <a href="/dashboard/" class="btn btn-secondary">Annuler</a>
+            <button type="submit" class="btn btn-primary" form="profile-form">Sauvegarder</button>
+        </div>
+    </div>
+
+    <script>
+        // Submit all forms at once
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form');
+            const container = document.querySelector('.container');
+            
+            // Wrap all forms in one container form
+            const mainForm = document.createElement('form');
+            mainForm.id = 'profile-form';
+            mainForm.method = 'POST';
+            
+            // If there's already a form, use it
+            if (forms.length > 0) {
+                const firstForm = forms[0];
+                firstForm.id = 'profile-form';
+            }
+        });
+
+        // Handle file uploads
+        document.getElementById('birth_cert')?.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'Fichier sélectionné';
+            console.log('Birth cert:', fileName);
+        });
+
+        document.getElementById('id_card')?.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'Fichier sélectionné';
+            console.log('ID card:', fileName);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold">Présences</h1>
+      <p class="text-sm text-gray-500">Gérer les présences par séance / date</p>
+    </div>
+    <div>
+      <button id="addPresenceBtn" class="btn-primary px-4 py-2 rounded">Ajouter présence</button>
+    </div>
+  </div>
+
+  <div class="card p-4">
+    <table class="table w-full">
+      <thead>
+        <tr>
+          <th class="text-left">Étudiant</th>
+          <th class="text-left">Événement</th>
+          <th class="text-left">Statut</th>
+          <th class="text-left">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="presenceTable">
+        {% for p in presences %}
+        <tr data-pk="{{ p.pk }}" class="hover:bg-gray-50 cursor-pointer presence-row" title="Double-cliquez pour modifier">
+          <td>{{ p.etudiant.prenom }} {{ p.etudiant.nom }}</td>
+          <td>{{ p.calendar_event.titre }}</td>
+          <td>{{ p.get_statut_display }}</td>
+          <td>
+            <!-- edit icon button -->
+            <button class="editBtn icon-btn edit p-0" data-pk="{{ p.pk }}" title="Modifier" aria-label="Modifier">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z"/></svg>
+            </button>
+            <!-- delete icon button -->
+            <button class="deleteBtn delete-btn icon-btn delete p-0 ml-2" data-pk="{{ p.pk }}" title="Supprimer" aria-label="Supprimer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-sm text-gray-500">Aucune présence trouvée.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- modal container -->
+  <div id="modalContainer" style="display:none;"></div>
+
+  <script>
+    // Helper to fetch and show modal content
+    function showModal(html){
+      const container = document.getElementById('modalContainer');
+      // insert HTML
+      container.innerHTML = html;
+      // execute any inline scripts found in the fragment (innerHTML doesn't run them)
+      container.querySelectorAll('script').forEach(oldScript=>{
+        try{
+          const script = document.createElement('script');
+          if(oldScript.src) script.src = oldScript.src;
+          if(oldScript.type) script.type = oldScript.type;
+          script.text = oldScript.textContent;
+          oldScript.parentNode.replaceChild(script, oldScript);
+        }catch(e){
+          // ignore
+        }
+      });
+      container.style.display = 'block';
+      // close handler: mark that user explicitly closed the presence modal so it won't auto-open until cleared
+      container.querySelectorAll('.modal-close').forEach(btn=> btn.addEventListener('click', ()=> { 
+        try{ sessionStorage.setItem('presence_modal_closed','1'); }catch(e){}
+        container.style.display='none'; container.innerHTML=''; 
+      }));
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+      // Add new
+      document.getElementById('addPresenceBtn').addEventListener('click', function(){
+        try{ sessionStorage.removeItem('presence_modal_closed'); }catch(e){}
+        fetch('{% url "presence_add" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+          .then(r=>r.text()).then(html=> showModal(html));
+      });
+
+      // Auto-open add-presence modal on first load unless user explicitly closed it
+      try{
+        var closed = sessionStorage.getItem('presence_modal_closed');
+      }catch(e){ var closed = null; }
+      if(!closed || closed !== '1'){
+        // trigger the same fetch used by the Add button so modal content loads and autofocus works
+        fetch('{% url "presence_add" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+          .then(r=>r.text()).then(html=> showModal(html)).catch(()=>{});
+      }
+
+      // Delete handler (AJAX)
+      document.querySelectorAll('.deleteBtn').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          if(!confirm('Supprimer cette présence ?')) return;
+          const pk = btn.dataset.pk;
+          fetch(`/presence/${pk}/delete-ajax/`, { method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken') } })
+            .then(r=>r.json()).then(data=>{
+              if(data.ok){
+                const row = document.querySelector('tr[data-pk="'+pk+'"]');
+                if(row) row.remove();
+              } else { alert('Erreur: '+(data.error||'unknown')); }
+            });
+        });
+      });
+
+      // Edit on double click or edit button
+      document.querySelectorAll('.presence-row').forEach(function(row){
+        row.addEventListener('dblclick', function(){
+          const pk = row.dataset.pk;
+          fetch(`/presence/${pk}/edit/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r=>r.text()).then(html=> showModal(html));
+        });
+        const editBtn = row.querySelector('.editBtn');
+        if(editBtn) editBtn.addEventListener('click', function(e){ e.stopPropagation(); row.dispatchEvent(new Event('dblclick')); });
+      });
+
+      function getCookie(name) {
+        let v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+        return v ? v[2] : null;
+      }
+    });
+  </script>
+
+{% endblock %}

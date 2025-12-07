@@ -1,0 +1,226 @@
+{% load static %}
+{% load static currency_filters %}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Reçu {% if paiement.reference %}{{ paiement.reference }}{% elif paiement.ref %}{{ paiement.ref }}{% else %}#{{ paiement.id }}{% endif %}</title>
+  <style>
+  body{ font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; color:#0f172a; padding:6px; margin:0; }
+    .brand{ color:#0f172a; font-weight:800; font-size:18px; }
+    .muted{ color:#6b7280; }
+    .content{ max-width:960px; margin:0 auto; }
+    .line{ margin:10px 0; }
+    .field-label{ font-weight:700; }
+  .signature{ height:40px; border-bottom:none; width:220px; }
+    .right{ text-align:right; }
+  /* A5 landscape print setup */
+  @page { size: 210mm 148mm; margin: 2mm; }
+  /* make sure colors are preserved when printing (browser must allow background prints) */
+  body, .receipt-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* header visible on screen too; warm gradient + border/title fallback when print backgrounds are off */
+  /* Make header a centered flex container so the title sits perfectly centered vertically */
+  /* use a fixed header height and center its contents precisely */
+  /* darker brand gradient for receipts to improve print contrast */
+  .receipt-header{ box-sizing:border-box; display:flex; align-items:center; justify-content:center; width:calc(100% - 16px); max-width:100%; padding:0 14px; border-radius:6px 6px 0 0; background:linear-gradient(90deg,#0ea47a,#0b845f); color:#fff; text-align:center; margin:0 auto 6px; border:none; overflow:hidden; height:64px; }
+  /* title in white with subtle shadow for legibility */
+  .receipt-title{ color:#ffffff; display:inline-block; margin:0; line-height:64px; font-weight:900; vertical-align:middle; text-shadow:0 1px 2px rgba(0,0,0,0.25); }
+  /* ensure pages and coupons are centered on screen as well as print */
+  .page{ width:100%; height:148mm; box-sizing:border-box; display:flex; align-items:flex-start; justify-content:center; padding:0; margin:0; position:relative; }
+  .coupon{ width:100%; box-sizing:border-box; margin:0 auto; display:block; overflow:hidden; padding-left:4px; padding-right:4px; }
+  /* small top padding so header sits closer to the page top */
+  .coupon{ padding-top:6px; }
+    @media print{
+    body{ padding:0; }
+    .no-print{ display:none; }
+    .content{ width:100%; margin:0; padding:0; box-sizing:border-box; }
+    /* Page and content layout: each .page is one A5 landscape sheet */
+  .page{ width:100%; height:148mm; box-sizing:border-box; page-break-after:always; padding:0; display:flex; align-items:flex-start; justify-content:center; margin:0; }
+    /* Coupon fills the page; header sits at the top and content follows (reduce bottom whitespace) */
+  /* Make the coupon slightly taller so the bon appears larger on A5 printouts */
+  .coupon{ background:#fff; border:none; padding:6px; border-radius:6px; box-sizing:border-box; display:block; text-align:left; width:100%; margin:0 auto; overflow:hidden; position:relative; padding-bottom:40px; min-height:128mm; }
+      .coupon, .coupon *{ page-break-inside:avoid; }
+  /* purple / indigo two-color header */
+  /* the declaration above (outside @media) ensures screen preview shows the same gradient */
+  .receipt-sub .payment-ref{ display:inline-block; color:#fff; background:rgba(255,255,255,0.12); padding:2px 6px; border-radius:4px; font-weight:800; margin-left:6px; }
+  /* fallback: if gradient not printed, make the title and small accent purple so header remains visible */
+  .receipt-header, .receipt-title, .payment-ref{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* highlight inline references elsewhere */
+  .ref-highlight{ color:#6D28D9; font-weight:700; }
+  .signature-block{ position:absolute; bottom:12px; left:12px; right:12px; display:flex; justify-content:flex-end; margin-top:0; }
+  .signature-label{ font-size:12px; color:#6b7280; text-align:center; margin-top:6px; }
+      .receipt-title{ font-size:28px; text-align:center; line-height:64px; }
+      /* space after header before the first paragraph */
+      .receipt-header{ margin-bottom:14px; }
+  /* visible bordered box that contains the receipt content (starts after the colored header) */
+  .receipt-box{ border:1px solid #d1d5db; border-radius:8px; padding:12px 10px 18px 10px; background:#fff; box-sizing:border-box; margin:0 auto 8px; }
+      /* better readable line-height inside the coupon */
+      .coupon p{ line-height:1.6; }
+        .receipt-sub{ font-size:12px; margin:0; text-align:center; }
+    }
+  </style>
+</head>
+<body>
+  <!-- screen-only print button removed to keep header aligned with coupons -->
+
+  <div class="content">
+
+    <!-- Page 1 (A5 landscape) -->
+    <div class="page">
+      <!-- page-level header logo and QR (outside the coupon box) -->
+    {% if school_logo %}
+      <img src="{{ school_logo }}" alt="Logo" style="position:absolute; left:6mm; top:6mm; width:56mm; height:auto; object-fit:contain;" />
+    {% else %}
+      <img src="{% static 'school_logo.png' %}" alt="Logo" style="position:absolute; left:6mm; top:6mm; width:56mm; height:auto; object-fit:contain;" />
+    {% endif %}
+      <!-- Coupon 1 : Reçu pour l'école -->
+      <div class="coupon">
+        <!-- Header: school name block (logo + QR placed here so they sit in the header area) -->
+        <div style="text-align:center;margin-bottom:2px; position:relative;">
+         {% if school_logo %}
+           <img src="{{ school_logo }}" alt="Logo" style="position:absolute; left:6px; top:44%; transform:translateY(-50%); width:130px; height:auto; object-fit:contain;" />
+         {% else %}
+           <img src="{% static 'school_logo.png' %}" alt="Logo" style="position:absolute; left:6px; top:44%; transform:translateY(-50%); width:130px; height:auto; object-fit:contain;" />
+         {% endif %}
+         <img id="receipt-qr-1" alt="QR Code" src="https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl={% if paiement.reference %}{{ paiement.reference|urlencode }}{% elif paiement.ref %}{{ paiement.ref|urlencode }}{% else %}{{ paiement.id|urlencode }}{% endif %}&chld=L|1" loading="eager" style="position:absolute; right:6px; top:44%; transform:translateY(-50%); width:80px; height:75px; object-fit:contain; background:#fff; padding:3px; border-radius:4px;" />
+          <div style="position:relative; top:-6px; z-index:11;">
+            <div style="font-weight:700;font-size:22px;color:#0f172a; font-family:'Cooper Black', Cooper, serif;">Génie Système School</div>
+            <div style="font-size:14px;color:#333;line-height:1.25;">Ecole de Langues et Consulting dans les nouvelles technologies</div>
+            <div style="font-size:14px;color:#333;line-height:1.25;">Bureau d'étude en informatique, incubateur d'entreprise</div>
+            <div style="font-size:14px;color:#333;line-height:1.25;">developemment logiciels et sites web</div>
+          </div>
+        </div>
+        <div class="receipt-header">
+          <div class="receipt-title">Reçu de paiement</div>
+          <div class="receipt-sub">&nbsp;</div>
+        </div>
+        <div class="receipt-box">
+            <p style="margin:0 0 12px;">Je soussigné <strong>{% if etudiant %}{{ etudiant.nom }} {{ etudiant.prenom }}{% else %}-{% endif %}</strong> référencé(e) avec le code <strong>{% if etudiant %}{{ etudiant.id }}{% else %}-{% endif %}</strong>, résidant à <strong>{% if etudiant and etudiant.adresse %}{{ etudiant.adresse }}{% else %}-{% endif %}</strong>, avoir versé un Montant de <strong>{{ montant|format_space }} DA</strong> dans le cadre de consulting et boosting de compétence en <strong>{% if formations_list %}{% for f in formations_list %}{% if not forloop.first %}, {% endif %}{{ f }}{% endfor %}{% elif formation %}{{ formation.nom }}{% else %}-{% endif %}</strong>.</p>
+
+      <div style="margin-top:12px;padding-top:8px;border-top:1px dashed #e5e7eb;">
+          <table style="width:100%; max-width:180mm; margin:8px auto 0; border-collapse:collapse; font-size:13px; border:1px solid #cfcfcf;">
+            <tr style="background:#f7f7f7;">
+              <th style="padding:8px 10px; border-right:1px solid #dcdcdc; text-align:right; border-bottom:2px solid #cfcfcf;">Montant versé</th>
+              <th style="padding:8px 10px; border-right:1px solid #dcdcdc; text-align:right; border-bottom:2px solid #cfcfcf;">Frais à payer</th>
+              <th style="padding:8px 10px; border-right:1px solid #dcdcdc; text-align:right; border-bottom:2px solid #cfcfcf;">Ancien solde</th>
+              <th style="padding:8px 10px; border-right:1px solid #dcdcdc; text-align:right; border-bottom:2px solid #cfcfcf;">reste à payer</th>
+              <th style="padding:8px 10px; text-align:left; border-bottom:2px solid #cfcfcf;">Statut</th>
+            </tr>
+            <tr>
+              <td style="padding:8px 10px; text-align:right; border-top:1px solid #e9e9e9;">{{ montant|format_space }} DA</td>
+              <td style="padding:8px 10px; text-align:right; border-top:1px solid #e9e9e9;">{% if total_frais is not None %}{{ total_frais|format_space }} DA{% else %}-{% endif %}</td>
+              <td style="padding:8px 10px; text-align:right; border-top:1px solid #e9e9e9;">{% if ancien_solde is not None %}{% if ancien_solde|floatformat:2 == '0.00' %}0 DA{% else %}{{ ancien_solde|signed_space }} DA{% endif %}{% else %}-{% endif %}</td>
+              <td style="padding:8px 10px; text-align:right; border-top:1px solid #e9e9e9;">{% if apres_solde is not None %}{% if apres_solde|floatformat:2 == '0.00' %}0 DA{% else %}{{ apres_solde|signed_space }} DA{% endif %}{% else %}-{% endif %}</td>
+              <td style="padding:8px 10px; text-align:right; border-top:1px solid #e9e9e9;">{% if statut_label %}{{ statut_label }}{% else %}{{ paiement.statut|default:'-' }}{% endif %}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="signature-block">
+          <div style="text-align:right;">
+            <div class="signature"></div>
+            <div class="signature-label">Signature</div>
+          </div>
+        </div>
+        </div>
+        </div>
+      </div> <!-- end coupon -->
+    </div> <!-- end page -->
+
+
+
+
+
+    <!-- Page 2 (A5 landscape) -->
+    <div class="page">
+      <!-- page-level header logo and QR (outside the coupon box) -->
+    {% if school_logo %}
+      <img src="{{ school_logo }}" alt="Logo" style="position:absolute; left:6mm; top:6mm; width:56mm; height:auto; object-fit:contain;" />
+    {% else %}
+      <img src="{% static 'school_logo.png' %}" alt="Logo" style="position:absolute; left:6mm; top:6mm; width:56mm; height:auto; object-fit:contain;" />
+    {% endif %}
+      <!-- Coupon 2 : Reçu pour l'étudiant (lui-même) -->
+      <div class="coupon">
+        <div style="text-align:center;margin-bottom:2px; position:relative;">
+         {% if school_logo %}
+           <img src="{{ school_logo }}" alt="Logo" style="position:absolute; left:6px; top:44%; transform:translateY(-50%); width:140px; height:auto; object-fit:contain;" />
+         {% else %}
+           <img src="{% static 'school_logo.png' %}" alt="Logo" style="position:absolute; left:6px; top:44%; transform:translateY(-50%); width:140px; height:auto; object-fit:contain;" />
+         {% endif %}
+         <img id="receipt-qr-2" alt="QR Code" src="https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl={% if paiement.reference %}{{ paiement.reference|urlencode }}{% elif paiement.ref %}{{ paiement.ref|urlencode }}{% else %}{{ paiement.id|urlencode }}{% endif %}&chld=L|1" loading="eager" style="position:absolute; right:6px; top:44%; transform:translateY(-50%); width:80px; height:80px; object-fit:contain; background:#fff; padding:3px; border-radius:4px;" />
+          <div style="position:relative; top:-6px; z-index:11;">
+            <div style="font-weight:700;font-size:20px;color:#0f172a; font-family:'Cooper Black', Cooper, serif;">Génie Système School</div>
+            <div style="font-size:14px;color:#333;line-height:1.25;">Ecole de Langues et Consulting dans les nouvelles technologies</div>
+            <div style="font-size:14px;color:#333;line-height:1.25;">Bureau d'étude en informatique, incubateur d'entreprise</div>
+            <div style="font-size:14px;color:#333;line-height:1.25;">developemment logiciels et sites web</div>
+          </div>
+        </div>
+        <div class="receipt-header">
+          <div class="receipt-title">Reçu de paiement</div>
+            <div class="receipt-sub">&nbsp;</div>
+        </div>
+      <div class="receipt-box">
+  <p style="margin:0 0 12px;">Je soussigné Monsieur le gérant de l'école <strong>Genie Systeme School</strong>, avoir reçu un Montant de <strong>{{ montant|format_space }} DA</strong> de la part de l'étudiant <strong>{% if etudiant %}{{ etudiant.nom }} {{ etudiant.prenom }}{% else %}-{% endif %}</strong> référencé(e) avec le code <strong>{% if etudiant %}{{ etudiant.id }}{% else %}-{% endif %}</strong> dans le cadre de consulting et boosting de <strong>{% if formations_list %}{% for f in formations_list %}{% if not forloop.first %}, {% endif %}{{ f }}{% endfor %}{% elif formation %}{{ formation.nom }}{% else %}-{% endif %}</strong>.</p>
+
+        <div style="margin-top:12px;padding-top:8px;border-top:1px dashed #e5e7eb;">
+  <table style="width:100%; max-width:180mm; margin:8px auto 0; border-collapse:collapse; font-size:13px; border:1px solid #cfcfcf;">
+          <tr style="background:#f7f7f7;">
+            <th style="padding:8px 10px; border-right:1px solid #dcdcdc; text-align:right; border-bottom:2px solid #cfcfcf;">Montant versé</th>
+            <th style="padding:8px 10px; border-right:1px solid #dcdcdc; text-align:right; border-bottom:2px solid #cfcfcf;">Frais à payer</th>
+            <th style="padding:8px 10px; border-right:1px solid #dcdcdc; text-align:right; border-bottom:2px solid #cfcfcf;">Ancien solde</th>
+            <th style="padding:8px 10px; border-right:1px solid #dcdcdc; text-align:right; border-bottom:2px solid #cfcfcf;">reste à payer</th>
+            <th style="padding:8px 10px; text-align:left; border-bottom:2px solid #cfcfcf;">Statut</th>
+          </tr>
+          <tr>
+            <td style="padding:8px 10px; text-align:right; border-top:1px solid #e9e9e9;">{{ montant|format_space }} DA</td>
+            <td style="padding:8px 10px; text-align:right; border-top:1px solid #e9e9e9;">{% if total_frais is not None %}{{ total_frais|format_space }} DA{% else %}-{% endif %}</td>
+            <td style="padding:8px 10px; text-align:right; border-top:1px solid #e9e9e9;">{% if ancien_solde is not None %}{% if ancien_solde|floatformat:2 == '0.00' %}0 DA{% else %}{{ ancien_solde|signed_space }} DA{% endif %}{% else %}-{% endif %}</td>
+            <td style="padding:8px 10px; text-align:right; border-top:1px solid #e9e9e9;">{% if apres_solde is not None %}{% if apres_solde|floatformat:2 == '0.00' %}0 DA{% else %}{{ apres_solde|signed_space }} DA{% endif %}{% else %}-{% endif %}</td>
+            <td style="padding:8px 10px; text-align:right; border-top:1px solid #e9e9e9;">{% if statut_label %}{{ statut_label }}{% else %}{{ paiement.statut|default:'-' }}{% endif %}</td>
+          </tr>
+        </table>
+      </div>
+
+        <div class="signature-block">
+          <div style="text-align:right;">
+            <div class="signature"></div>
+            <div class="signature-label">Signature</div>
+          </div>
+        </div>
+        </div>
+        </div>
+      </div> <!-- end coupon 2 -->
+    </div> <!-- end page 2 -->
+
+    
+
+  <script>
+    (async function(){
+      try{
+        var ref = "{% if paiement.reference %}{{ paiement.reference }}{% elif paiement.ref %}{{ paiement.ref }}{% else %}{{ paiement.id }}{% endif %}";
+        async function fetchQrDataUrl(text){
+          try{
+            const data = encodeURIComponent(String(text||''));
+            const api = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${data}`;
+            const resp = await fetch(api);
+            if(!resp.ok) throw new Error('QR fetch failed');
+            const blob = await resp.blob();
+            return await new Promise((res, rej) => {
+              const reader = new FileReader();
+              reader.onload = () => res(reader.result);
+              reader.onerror = rej;
+              reader.readAsDataURL(blob);
+            });
+          }catch(err){ console.warn('fetchQrDataUrl failed', err); return null; }
+        }
+        var dataUrl = await fetchQrDataUrl(ref);
+  var q1 = document.getElementById('receipt-qr-1');
+  var q2 = document.getElementById('receipt-qr-2');
+  if(dataUrl){ if(q1) q1.src = dataUrl; if(q2) q2.src = dataUrl; }
+      }catch(e){ console.warn('qr assignment failed', e); }
+      window.onload = function(){ setTimeout(function(){ window.print(); }, 150); };
+    })();
+  </script>
+</body>
+</html>

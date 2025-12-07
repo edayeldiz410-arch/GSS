@@ -1,0 +1,75 @@
+{% load static %}
+{% extends 'base.html' %}
+{% block content %}
+  <h1>{% if form.instance.pk %}Modifier présence{% else %}Ajouter présence{% endif %}</h1>
+  <form method="post">{% csrf_token %}
+    <div>
+      {{ form.etudiant.label_tag }}<br>
+      {{ form.etudiant }}
+      <div id="student-search">
+        {{ form.etudiant_search }}
+        <div id="student-results"></div>
+        <div id="student-preview" style="margin-top:10px;display:flex;align-items:center;gap:10px;">
+          <!-- preview will contain image and name without underline -->
+        </div>
+      </div>
+    </div>
+    <div>
+      {{ form.calendar_event.label_tag }}<br>
+      {{ form.calendar_event }}
+    </div>
+    <div>
+      {{ form.statut.label_tag }}<br>
+      {{ form.statut }}
+    </div>
+    <div>
+      {{ form.remarques.label_tag }}<br>
+      {{ form.remarques }}
+    </div>
+    <div style="margin-top:10px;">
+      <button class="btn btn-primary" type="submit">Enregistrer</button>
+      <a class="btn" href="{% url 'presence_list' %}">Annuler</a>
+    </div>
+  </form>
+
+  <script>
+  (function(){
+    const input = document.querySelector('input[name="etudiant_search"]');
+    const results = document.getElementById('student-results');
+    const preview = document.getElementById('student-preview');
+    if(!input) return;
+    let timeout = null;
+    input.addEventListener('input', function(){
+      clearTimeout(timeout);
+      timeout = setTimeout(()=>{
+        const q = input.value.trim();
+        fetch('{% url "api_etudiants_search" %}?q=' + encodeURIComponent(q))
+          .then(r=>r.json()).then(data=>{
+            results.innerHTML = '';
+            data.results.forEach(r0=>{
+              const el = document.createElement('div');
+              el.style.padding='6px'; el.style.cursor='pointer'; el.style.borderBottom='1px solid #eee';
+              el.textContent = r0.display;
+              el.addEventListener('click', ()=>{
+                // select underlying select by value
+                const sel = document.querySelector('select[name="etudiant"]');
+                if(sel){ try{ sel.value = r0.id; }catch(e){} }
+                results.innerHTML='';
+                input.value = r0.display;
+                // preview
+                preview.innerHTML = '';
+                if(r0.photo){
+                  const img = document.createElement('img'); img.src = r0.photo; img.style.height='80px'; img.style.borderRadius='8px'; img.style.objectFit='cover';
+                  preview.appendChild(img);
+                }
+                const p = document.createElement('div'); p.textContent = r0.display; p.style.fontWeight='600'; preview.appendChild(p);
+              });
+              results.appendChild(el);
+            });
+          }).catch(()=>{});
+      }, 250);
+    });
+  })();
+  </script>
+
+{% endblock %}

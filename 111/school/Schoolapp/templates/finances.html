@@ -1,0 +1,780 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Dashboard Finance{% endblock %}
+{% block content %}
+  <!-- Tailwind + fonts kept here so the static layout matches design; placed inside content so navbar from base.html remains -->
+  <script src="{% static 'static/vendor/js/tailwind.js' %}"></script>
+  <link href="{% static 'static/vendor/fonts/css2_97528255' %}" rel="stylesheet"/>
+  <link href="{% static 'static/vendor/fonts/icon_8b874a3a' %}" rel="stylesheet"/>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    /* Donut paths - animation removed; keep visual stroke cap */
+    .donut-path {
+  stroke-linecap: butt;
+    }
+   /* Blur financial cards for Secretaire role (minimal, non-destructive).
+     Note: we also support applying the class directly to numeric elements
+     (e.g. <span class="fmt-num">). When applied to the number itself we
+     must hide the text and not block pointer events on the surrounding
+     card so users can still click through to the detail page. */
+   .blurred-finance { filter: blur(4px) grayscale(.35); opacity: .55; transition: filter .28s ease, opacity .28s ease; }
+   /* If the class is applied directly to a numeric element, make the value invisible
+     but keep the parent card fully interactive (don't set pointer-events:none here). */
+   .fmt-num.blurred-finance,
+   .text-3xl.blurred-finance,
+   .donut-total.blurred-finance,
+   .rev-num.blurred-finance,
+   .fmt-num.blurred-finance + span {
+    color: transparent !important;
+    background: none !important;
+    -webkit-background-clip: initial !important;
+    background-clip: initial !important;
+    -webkit-text-fill-color: transparent !important;
+    text-shadow: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+   }
+  /* Hide adjacent currency unit when a number is blurred.
+    We wrap literal 'DA' in a .currency-unit span so it can be hidden
+    when either the number itself or its parent card is blurred. */
+  .fmt-num.blurred-finance + .currency-unit { visibility: hidden !important; opacity: 0 !important; }
+  .blurred-finance .currency-unit { visibility: hidden !important; opacity: 0 !important; }
+  /* Allow explicitly unblurred cards even when an ancestor has .blurred-finance */
+  .blurred-finance .no-blur { filter: none !important; opacity: 1 !important; }
+  .blurred-finance .no-blur .fmt-num,
+  .blurred-finance .no-blur .text-3xl,
+  .blurred-finance .no-blur .currency-unit,
+  .blurred-finance .no-blur .donut-total,
+  .blurred-finance .no-blur .rev-num {
+    color: inherit !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: inherit !important;
+    text-shadow: none !important;
+  }
+    @media (prefers-reduced-motion: reduce){ .blurred-finance { transition: none !important; } }
+    /* Hide numeric text inside blurred cards while keeping layout */
+    .blurred-finance .fmt-num,
+    .blurred-finance .text-3xl,
+    .blurred-finance .donut-total,
+    .blurred-finance .rev-num,
+    .blurred-finance .fmt-num + span {
+      color: transparent !important;
+      background: none !important;
+      -webkit-background-clip: initial !important;
+      background-clip: initial !important;
+      -webkit-text-fill-color: transparent !important;
+      text-shadow: none !important;
+      opacity: 0 !important;
+    }
+    .blurred-finance [data-val],
+    .blurred-finance [id$="-value"] {
+      visibility: hidden !important;
+    }
+    /* Remove visual charts/decoration inside blurred cards (hide bars, donut slices, center total and prominent week result) */
+    .blurred-finance { position: relative; }
+    .blurred-finance #weekly-bars-root .weekly-bar,
+    .blurred-finance .weekly-bar { display: none !important; }
+    .blurred-finance .donut-path { display: none !important; }
+    .blurred-finance .relative.w-48 .absolute.inset-0 { display: none !important; }
+    /* hide the prominent small summary number in the weekly card header */
+    .blurred-finance .text-right .text-xl { visibility: hidden !important; }
+    /* --- Hover gradient cards: subtle colored overlay + lift --- */
+    .hover-gradient-card { position: relative; overflow: hidden; transition: transform .22s cubic-bezier(.2,.9,.25,1), box-shadow .22s ease; }
+    .hover-gradient-card:hover { transform: translateY(-6px); box-shadow: 0 18px 44px rgba(2,6,23,0.08); }
+    .hover-gradient-card::before { content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity .32s ease, transform .32s ease; transform: scale(1.02); }
+    .payments-card.hover-gradient-card::before { background: linear-gradient(120deg, rgba(14,165,233,0.06), rgba(59,130,246,0.04)); }
+    .reg-enseignants-card.hover-gradient-card::before { background: linear-gradient(120deg, rgba(34,197,94,0.06), rgba(6,182,212,0.04)); }
+    .charges-card.hover-gradient-card::before { background: linear-gradient(120deg, rgba(250,204,21,0.06), rgba(245,158,11,0.04)); }
+    .hover-gradient-card:hover::before { opacity: 1; transform: scale(1); }
+    /* small highlight for icon background on hover */
+    .hover-gradient-card:hover .bg-blue-100, .hover-gradient-card:hover .bg-green-100, .hover-gradient-card:hover .bg-yellow-100 { filter: brightness(1.05) saturate(1.05); transform: translateY(-2px); transition: transform .22s ease, filter .22s ease; }
+  </style>
+
+  <div class="p-8">
+    <div class="space-y-8">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Finance</h1>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
+          <a href="{% url 'paiements' %}" class="block payments-card hover-gradient-card bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col justify-between no-underline" aria-label="Voir les paiements des étudiants">
+            <div>
+              <div class="flex items-center space-x-4">
+                <div class="bg-blue-100 p-3 rounded-lg">
+                  <span class="material-icons text-blue-500">school</span>
+                </div>
+                <h2 class="text-lg font-semibold text-gray-700">Règlement des Étudiants</h2>
+              </div>
+              <p class="text-gray-500 mt-3 text-sm">Suivi des paiements des frais de scolarité et autres contributions étudiantes.</p>
+            </div>
+            <div class="flex justify-between items-end mt-6">
+              <div>
+                <p class="text-3xl font-bold text-gray-800"><span class="fmt-num {% if is_secretaire %}blurred-finance{% endif %}" data-val="{{ paiements_total }}"></span><span class="currency-unit {% if is_secretaire %}blurred-finance{% endif %}"> DA</span></p>
+                <p class="text-sm text-gray-500">Collectés</p>
+              </div>
+              <div>
+                <p class="text-3xl font-bold text-green-500">92%</p>
+                <p class="text-sm text-gray-500">Payés</p>
+              </div>
+            </div>
+          </a>
+
+          <script>
+            // Make sure the whole payments card is clickable even if child elements stopPropagation
+            document.addEventListener('DOMContentLoaded', function(){
+              var card = document.querySelector('.payments-card');
+              if(card){
+                card.style.cursor = 'pointer';
+                card.addEventListener('click', function(e){
+                  // if the click originated from an anchor/button inside, let it behave normally
+                  var a = card.querySelector('a') || card;
+                  var href = card.getAttribute('href') || (a && a.getAttribute && a.getAttribute('href'));
+                  if(!href){
+                    // fallback: find inner anchor
+                    var inner = card.querySelector('a');
+                    if(inner) href = inner.getAttribute('href');
+                  }
+                  if(href){ window.location.href = href; }
+                }, { passive: true });
+              }
+            });
+          </script>
+
+          <a href="{% url 'reglements_enseignants' %}" class="block reg-enseignants-card hover-gradient-card bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col justify-between no-underline" aria-label="Voir les règlements des enseignants">
+            <div>
+              <div class="flex items-center space-x-4">
+                <div class="bg-green-100 p-3 rounded-lg">
+                  <span class="material-icons text-green-500">person</span>
+                </div>
+                <h2 class="text-lg font-semibold text-gray-700">Règlement des Enseignants</h2>
+              </div>
+              <p class="text-gray-500 mt-3 text-sm">Gestion des salaires, honoraires et autres rémunérations des enseignants.</p>
+            </div>
+            <div class="flex justify-between items-end mt-6">
+              <div>
+                <p class="text-3xl font-bold text-gray-800"><span class="fmt-num" data-val="{{ reglements_enseignants_total }}"></span><span class="currency-unit"> DA</span></p>
+                <p class="text-sm text-gray-500">Payés</p>
+              </div>
+              <div>
+                <p class="text-3xl font-bold text-green-500">100%</p>
+                <p class="text-sm text-gray-500">Effectués</p>
+              </div>
+            </div>
+          </a>
+
+          <div class="bg-white charges-card hover-gradient-card p-6 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center space-x-4">
+                <div class="bg-yellow-100 p-3 rounded-lg">
+                  <span class="material-icons text-yellow-500">work</span>
+                </div>
+                <h2 class="text-lg font-semibold text-gray-700">Règlement des Employés</h2>
+              </div>
+              <p class="text-gray-500 mt-3 text-sm">Paiement des salaires et charges sociales pour le personnel administratif.</p>
+            </div>
+            <div class="flex justify-between items-end mt-6">
+              <div>
+                <p class="text-3xl font-bold text-gray-800">54 358 DA</p>
+                <p class="text-sm text-gray-500">Payés</p>
+              </div>
+              <div>
+                <p class="text-3xl font-bold text-green-500">100%</p>
+                <p class="text-sm text-gray-500">Effectués</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Per-school cards: show amount owed to each external school (exclude Genie Systeme) -->
+          {% if ecoles_summary and ecoles_summary|length > 0 %}
+            <div class="lg:col-span-4 mt-4 w-full">
+              <h3 class="text-lg font-semibold text-gray-700 mb-2">Frais par École (hors Genie Systeme)</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {% for name, amount in ecoles_summary.items %}
+                  <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="flex items-center justify-between">
+                      <h4 class="font-semibold text-gray-700">{{ name }}</h4>
+                      <span class="text-sm text-gray-500">{{ amount|floatformat:2 }} DA</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2">Montant dû (est.)</p>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col justify-between no-blur">
+            <div>
+              <div class="flex items-center space-x-4">
+                <div class="bg-indigo-100 p-3 rounded-lg">
+                  <span class="material-icons text-indigo-500">storefront</span>
+                </div>
+                <h2 class="text-lg font-semibold text-gray-700">Règlement des Fournisseurs</h2>
+              </div>
+              <p class="text-gray-500 mt-3 text-sm">Suivi et règlement des factures des fournisseurs et prestataires de services.</p>
+            </div>
+            <div class="flex justify-between items-end mt-6">
+              <div>
+                <p class="text-3xl font-bold text-gray-800">33 241 DA</p>
+                <p class="text-sm text-gray-500">Facturés</p>
+              </div>
+              <div>
+                <p class="text-3xl font-bold text-green-500">85%</p>
+                <p class="text-sm text-gray-500">Réglés</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center space-x-4">
+                <div class="bg-red-100 p-3 rounded-lg">
+                  <span class="material-icons text-red-500">receipt_long</span>
+                </div>
+                <h2 class="text-lg font-semibold text-gray-700">Charges</h2>
+              </div>
+              <p class="text-gray-500 mt-3 text-sm">Gestion des charges fixes et variables de l'établissement (loyer, électricité, etc.).</p>
+            </div>
+            <div class="flex justify-between items-end mt-6">
+              <div>
+                <p class="text-3xl font-bold text-gray-800"><span class="fmt-num" data-val="{{ charges_total }}"></span><span class="currency-unit"> DA</span></p>
+                <p class="text-sm text-gray-500">Totales</p>
+              </div>
+              <div>
+                <p class="text-3xl font-bold text-red-500">-</p>
+                <p class="text-sm text-gray-500">Variation</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center space-x-4">
+                <div class="bg-indigo-50 p-3 rounded-lg">
+                  <span class="material-icons text-indigo-500">account_balance</span>
+                </div>
+                <h2 class="text-lg font-semibold text-gray-700">Frais d'écoles</h2>
+              </div>
+              <p class="text-gray-500 mt-3 text-sm">Suivi des frais d'inscription, scolarité et autres contributions perçues par l'établissement.</p>
+            </div>
+                  <div class="flex justify-between items-end mt-6">
+                    <div>
+                      <p class="text-3xl font-bold text-gray-800"><span id="frais-ecoles-amount" class="fmt-num {% if is_secretaire %}blurred-finance{% endif %}" data-val="{{ frais_ecoles_total }}"></span><span class="currency-unit {% if is_secretaire %}blurred-finance{% endif %}"> DA</span></p>
+                      <p class="text-sm text-gray-500">Frais</p>
+                    </div>
+                    <div class="text-right">
+                      <label for="frais-ecoles-school" class="text-sm text-gray-500">École</label>
+                      <div class="mt-1">
+                        <select id="frais-ecoles-school" class="block text-sm border rounded p-1">
+                          <option value="__all__">Toutes</option>
+                          <!-- If specific known external schools are used elsewhere, list them for convenience -->
+                          <option value="Jura School">Jura School</option>
+                          <option value="Pixel School">Pixel School</option>
+                        </select>
+                      </div>
+                      <div class="mt-2">
+                        <p class="text-3xl font-bold text-green-500"><span id="frais-ecoles-count" class="fmt-num" data-val="{{ frais_ecoles_count }}"></span></p>
+                        <p class="text-sm text-gray-500">Transactions</p>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Embed the per-school summary as JSON for client-side filtering (pre-serialized JSON provided by view) -->
+                  <script type="application/json" id="ecoles-summary-json">{{ ecoles_summary_json|default:'{}'|safe }}</script>
+                  <script type="application/json" id="ecoles-counts-json">{{ ecoles_counts_json|default:'{}'|safe }}</script>
+                  <script>
+                    // Client-side school filter for the 'Frais d'écoles' card.
+                    document.addEventListener('DOMContentLoaded', function () {
+                      try {
+                        var jsonEl = document.getElementById('ecoles-summary-json');
+                        var summary = {};
+                        if (jsonEl) {
+                          try { summary = JSON.parse(jsonEl.textContent || '{}'); } catch(e){ summary = {} }
+                        }
+                        var counts = {};
+                        var countsEl = document.getElementById('ecoles-counts-json');
+                        if (countsEl) {
+                          try { counts = JSON.parse(countsEl.textContent || '{}'); } catch(e){ counts = {}; }
+                        }
+
+                        var select = document.getElementById('frais-ecoles-school');
+                        var amountEl = document.getElementById('frais-ecoles-amount');
+                        var countEl = document.getElementById('frais-ecoles-count');
+
+                        function formatNumberRaw(v){
+                          if(v === null || v === undefined) return '-';
+                          var s = String(v).trim(); if(s === '') return '-';
+                          var neg = false; if(s[0] === '-'){ neg = true; s = s.slice(1); }
+                          s = s.replace(/\s+/g, '');
+                          var lastComma = s.lastIndexOf(','); var lastDot = s.lastIndexOf('.');
+                          var intPart = s; var fracPart = '';
+                          if(lastComma > -1 && lastComma > lastDot){ intPart = s.slice(0, lastComma); fracPart = s.slice(lastComma+1); }
+                          else if(lastDot > -1){ intPart = s.slice(0, lastDot); fracPart = s.slice(lastDot+1); }
+                          intPart = intPart.replace(/[^0-9]/g, ''); fracPart = fracPart.replace(/[^0-9]/g, ''); if(intPart === '') intPart = '0';
+                          fracPart = fracPart.replace(/0+$/,'');
+                          var outInt = ''; for(var i=0;i<intPart.length;i++){ var pos = intPart.length - i; outInt += intPart[i]; if(pos>1 && pos%3===1) outInt += ' '; }
+                          var result = (neg?'-':'') + outInt; if(fracPart && fracPart.length > 0){ result += '.' + fracPart; } return result;
+                        }
+
+                        function updateForSchool(school){
+                          if(!amountEl || !countEl) return;
+                          if(!school || school === '__all__'){
+                            // total/count fallback to server-provided attributes
+                            var total = amountEl.getAttribute('data-val');
+                            var cnt = countEl.getAttribute('data-val');
+                            amountEl.textContent = formatNumberRaw(total);
+                            countEl.textContent = formatNumberRaw(cnt);
+                            return;
+                          }
+                          // find matching key in summary (exact match expected as used by server)
+                          var val = summary[school] || 0;
+                          // use server-provided per-school counts when available
+                          var cnt = counts[school] || (val ? 1 : 0);
+                          amountEl.textContent = formatNumberRaw(val);
+                          countEl.textContent = formatNumberRaw(cnt);
+                        }
+
+                        if(select){ select.addEventListener('change', function(){ updateForSchool(select.value); }, { passive: true }); }
+                        // init
+                        updateForSchool(select ? select.value : '__all__');
+                      } catch (err) {
+                        console.error('frais ecoles filter error', err);
+                      }
+                    });
+                  </script>
+                  <script>
+                    // Make the "Frais d'écoles" card clickable without changing layout/CSS.
+                    document.addEventListener('DOMContentLoaded', function(){
+                      try{
+                        var headings = document.querySelectorAll('h2.text-lg.font-semibold.text-gray-700');
+                        headings.forEach(function(h){
+                          if(!h.textContent) return;
+                          var txt = h.textContent.trim();
+                          if(txt.indexOf('Frais') !== -1 && txt.indexOf('écoles') !== -1){
+                            var card = h.closest('.p-6');
+                            if(card){
+                              card.style.cursor = 'pointer';
+                              card.addEventListener('click', function(e){
+                                // If the click originated from an interactive control (select, option, link, button, input, label),
+                                // don't perform the card-level redirect so the control can be used (e.g. school filter select).
+                                try{
+                                  if(e && e.target && e.target.closest && e.target.closest('select, option, a, button, input, label')) return;
+                                }catch(ignore){}
+                                window.location.href = '{% url "ecole_paiements" %}';
+                              });
+                            }
+                          }
+                        });
+                      }catch(e){ console.error('ecole card click handler', e); }
+                    });
+                  </script>
+          </div>
+
+          <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 w-full mx-auto {% if is_secretaire %}blurred-finance{% endif %}">
+            <div class="flex justify-between items-start mb-4">
+              <h2 class="text-lg font-semibold text-gray-700">Statistiques Hebdomadaires des Revenus et Dépenses</h2>
+              <div class="text-right">
+                <p class="text-sm text-gray-500">Résultat de la semaine</p>
+                <p class="text-xl font-bold text-green-600">+131.7 DA</p>
+              </div>
+            </div>
+            <div class="flex items-end space-x-4 border-b border-gray-200 pb-4" id="weekly-bars-root">
+              {% for w in weekly_stats %}
+              <div class="flex flex-col items-center space-y-2 flex-1">
+                <div class="flex items-end justify-center h-[180px] w-full space-x-1">
+                  <div class="bg-green-500 w-1/3 rounded-t-md weekly-bar rev" data-rev-px="{{ w.rev_px }}"></div>
+                  <div class="bg-red-500 w-1/3 rounded-t-md weekly-bar exp" data-exp-px="{{ w.exp_px }}"></div>
+                </div>
+                <p class="text-sm text-gray-500">{{ w.label }}</p>
+                <div class="flex space-x-2">
+                  <p class="text-sm font-bold text-green-600">+<span class="fmt-num" data-val="{{ w.revenue }}"></span> DA</p>
+                  <p class="text-sm font-bold text-red-600">-<span class="fmt-num" data-val="{{ w.expense }}"></span> DA</p>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+  <style>
+  /* Dark-mode enhancement for payments students card */
+  [data-theme="dark"] .payments-card { background: linear-gradient(180deg, rgba(6,8,15,0.6), rgba(10,12,22,0.48)) !important; border: 1px solid rgba(255,255,255,0.04) !important; }
+  [data-theme="dark"] .payments-card .bg-blue-100 { background: linear-gradient(90deg,#06b6d4,#3b82f6) !important; box-shadow: 0 10px 30px rgba(59,130,246,0.06); }
+  [data-theme="dark"] .payments-card .text-gray-500 { color: #c7f9ee !important; }
+  [data-theme="dark"] .payments-card .text-gray-700 { color: #e6fdf6 !important; }
+  [data-theme="dark"] .payments-card .fmt-num, [data-theme="dark"] .payments-card .text-3xl { color: #a7f3d0 !important; }
+  [data-theme="dark"] .payments-card:hover { transform: translateY(-6px) scale(1.01); box-shadow: 0 20px 50px rgba(6,95,70,0.12); }
+  
+  /* Mobile Responsive Styles */
+  @media (max-width: 640px) {
+    .p-8 { 
+      padding: 1rem !important; 
+    }
+    
+    h1 { 
+      font-size: 1.75rem !important; 
+      margin-bottom: 1rem !important;
+    }
+    
+    .grid.grid-cols-1.sm\:grid-cols-2.md\:grid-cols-3.lg\:grid-cols-4 {
+      grid-template-columns: 1fr !important;
+      gap: 1rem !important;
+    }
+    
+    .grid.grid-cols-1.lg\:grid-cols-3 {
+      grid-template-columns: 1fr !important;
+      gap: 1rem !important;
+    }
+    
+    .bg-white {
+      padding: 1.25rem !important;
+      border-radius: 16px !important;
+      animation: cardFadeIn 0.4s ease-out backwards;
+    }
+    
+    @keyframes cardFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    /* Stagger animations */
+    .grid > div:nth-child(1) { animation-delay: 0.1s; }
+    .grid > div:nth-child(2) { animation-delay: 0.2s; }
+    .grid > div:nth-child(3) { animation-delay: 0.3s; }
+    .grid > div:nth-child(4) { animation-delay: 0.4s; }
+    
+    /* Card content adjustments */
+    .text-lg { 
+      font-size: 1rem !important; 
+    }
+    
+    .text-3xl { 
+      font-size: 1.75rem !important; 
+    }
+    
+    .text-4xl { 
+      font-size: 2rem !important; 
+    }
+    
+    .text-5xl { 
+      font-size: 2.5rem !important; 
+    }
+    
+    /* Icon sizes */
+    .material-icons { 
+      font-size: 1.5rem !important; 
+    }
+    
+    /* Weekly bars adjustments */
+    #weekly-bars-root {
+      flex-direction: column !important;
+      gap: 1rem !important;
+    }
+    
+    #weekly-bars-root > div {
+      width: 100% !important;
+    }
+    
+    /* Donut chart */
+    .relative.w-48 {
+      width: 200px !important;
+      height: 200px !important;
+      margin: 0 auto !important;
+    }
+    
+    /* Formations list */
+    .mt-4.space-y-2 {
+      margin-top: 1rem !important;
+    }
+    
+    /* Add colorful accents */
+    .payments-card {
+      border-left: 4px solid #3b82f6 !important;
+      background: linear-gradient(135deg, rgba(59,130,246,0.03), rgba(99,102,241,0.03)) !important;
+    }
+    
+    .reg-enseignants-card {
+      border-left: 4px solid #10b981 !important;
+      background: linear-gradient(135deg, rgba(16,185,129,0.03), rgba(5,150,105,0.03)) !important;
+    }
+    
+    .charges-card {
+      border-left: 4px solid #f59e0b !important;
+      background: linear-gradient(135deg, rgba(245,158,11,0.03), rgba(217,119,6,0.03)) !important;
+    }
+    
+    /* Touch feedback */
+    .bg-white:active {
+      transform: scale(0.98);
+      transition: transform 0.1s ease;
+    }
+  }
+  </style>
+
+        <script>
+        // Apply heights from data attributes at runtime to avoid template tokens inside CSS parsed blocks
+        document.addEventListener('DOMContentLoaded', function () {
+          document.querySelectorAll('.weekly-bar.rev').forEach(function (el) {
+            var px = el.getAttribute('data-rev-px');
+            if (px !== null) el.style.height = px + 'px';
+          });
+          document.querySelectorAll('.weekly-bar.exp').forEach(function (el) {
+            var px = el.getAttribute('data-exp-px');
+            if (px !== null) el.style.height = px + 'px';
+          });
+        });
+        </script>
+      </div>
+    </div>
+  </div>
+  <!-- Bottom row: Formations (donut) + Investissements + Trésorerie -->
+  <div class="p-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+  <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 {% if is_secretaire %}blurred-finance{% endif %}">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4">Formations les Mieux Rémunérées</h2>
+        <div class="flex items-center justify-center">
+          <div class="relative w-48 h-48">
+            <svg class="w-full h-full" viewBox="0 0 36 36">
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e6e6e6" stroke-width="3"></path>
+              {% for seg in donut_segments %}
+                {% if seg.arc_d %}
+                  <path class="donut-path" d="{{ seg.arc_d }}" fill="none" stroke="{{ seg.color }}" stroke-width="3" stroke-linecap="butt"></path>
+                {% else %}
+                  <path class="donut-path" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831" fill="none" stroke="{{ seg.color }}" data-percent="{{ seg.percent }}" stroke-width="3" stroke-linecap="butt"></path>
+                {% endif %}
+              {% endfor %}
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <p class="text-2xl font-bold text-gray-800"><span class="fmt-num" data-val="{{ paiements_total }}"></span></p>
+              <p class="text-sm text-gray-500">Total</p>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 space-y-2">
+          {% for f in top_formations %}
+            <div class="flex items-center">
+              <svg class="w-3 h-3 mr-2" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="4" cy="4" r="4" fill="{{ f.color }}" />
+              </svg>
+              <span>{{ f.formation }} (<span class="fmt-num" data-val="{{ f.total }}"></span>)</span>
+            </div>
+          {% empty %}
+            <div class="text-sm text-gray-500">Aucune donnée disponible</div>
+          {% endfor %}
+        </div>
+      </div>
+
+  <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 {% if is_secretaire %}blurred-finance{% endif %}">
+        <div class="flex items-center space-x-4">
+          <div class="bg-teal-100 p-3 rounded-lg">
+            <span class="material-icons text-teal-500">savings</span>
+          </div>
+          <h2 class="text-lg font-semibold text-gray-700">Investissements</h2>
+        </div>
+        <p class="text-gray-500 mt-3 text-sm">Gestion des investissements et des projets de développement de l'établissement.</p>
+        <div class="flex justify-between items-end mt-6">
+          <div>
+            <p class="text-3xl font-bold text-gray-800"><span id="invest-value" class="fmt-num" data-day="{{ invest_total_day }}" data-month="{{ invest_total_month }}" data-year="{{ invest_total_year }}">{{ invest_total_month }}</span> DA</p>
+            <p class="text-sm text-gray-500">Sorties</p>
+          </div>
+          <div class="text-right">
+            <label for="invest-range" class="text-sm text-gray-500">Période</label>
+            <div class="mt-1 flex items-center space-x-2">
+              <select id="invest-range" class="block text-sm border rounded p-1">
+                <option value="day">Jour</option>
+                <option value="month" selected>Mois</option>
+                <option value="year">Année</option>
+              </select>
+              <input id="invest-date" type="date" class="text-sm border rounded p-1 hidden" aria-label="Choisir une date pour Jour" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+  <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 {% if is_secretaire %}blurred-finance{% endif %}">
+        <div class="flex items-center space-x-4">
+          <div class="bg-purple-100 p-3 rounded-lg">
+            <span class="material-icons text-purple-500">account_balance</span>
+          </div>
+          <h2 class="text-lg font-semibold text-gray-700">Trésorerie</h2>
+        </div>
+        <p class="text-gray-500 mt-3 text-sm">Suivi de la trésorerie et des liquidités disponibles.</p>
+        <div class="flex justify-between items-end mt-6">
+          <div>
+            <p class="text-4xl font-extrabold text-gray-900"><span class="fmt-num" data-val="{{ tresorerie }}"></span> DA</p>
+
+            <p class="text-base font-medium text-gray-600 mt-1">Trésorerie (brut)</p>
+            <div class="mt-3">
+              <p class="text-xs uppercase tracking-wide text-gray-400">Bénéfice net</p>
+              <div class="mt-2 inline-flex items-end space-x-3">
+                <div class="rounded-full bg-gradient-to-br from-green-50 to-teal-50 p-3 shadow-sm">
+                  <span class="material-icons text-green-600 text-2xl">trending_up</span>
+                </div>
+                <p class="text-5xl md:text-6xl lg:text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-teal-400 leading-tight">
+                  <span class="fmt-num {% if is_secretaire %}blurred-finance{% endif %}" data-val="{{ benefice_net }}"></span>
+                  <span class="currency-unit ml-2 text-lg text-gray-700 {% if is_secretaire %}blurred-finance{% endif %}">DA</span>
+                </p>
+              </div>
+            </div>
+
+<script>
+  // Format numbers: preserve decimals, remove trailing .00 and insert space as thousands separator
+  (function(){
+    function formatNumberRaw(v){
+      if(v === null || v === undefined) return '-';
+      var s = String(v).trim();
+      if(s === '') return '-';
+      var neg = false;
+      if(s[0] === '-'){
+        neg = true;
+        s = s.slice(1);
+      }
+      // normalize common thousands separators to plain digits and dot as decimal separator
+      // allow inputs like "27,538.50" or "27 538,50"
+      s = s.replace(/\s+/g, ''); // remove spaces
+      // If comma used as decimal separator (e.g. 1.234,56), handle it: keep last comma as decimal
+      var lastComma = s.lastIndexOf(',');
+      var lastDot = s.lastIndexOf('.');
+      var intPart = s;
+      var fracPart = '';
+      if(lastComma > -1 && lastComma > lastDot){
+        intPart = s.slice(0, lastComma);
+        fracPart = s.slice(lastComma+1);
+      } else if(lastDot > -1){
+        intPart = s.slice(0, lastDot);
+        fracPart = s.slice(lastDot+1);
+      }
+      // remove any non-digit from parts
+      intPart = intPart.replace(/[^0-9]/g, '');
+      fracPart = fracPart.replace(/[^0-9]/g, '');
+      if(intPart === '') intPart = '0';
+      // remove trailing zeros from fraction
+      fracPart = fracPart.replace(/0+$/,'');
+      // format integer part with space as thousands separator
+      var outInt = '';
+      for(var i=0;i<intPart.length;i++){
+        var pos = intPart.length - i;
+        outInt += intPart[i];
+        if(pos>1 && pos%3===1) outInt += ' ';
+      }
+      var result = (neg?'-':'') + outInt;
+      if(fracPart && fracPart.length > 0){
+        result += '.' + fracPart;
+      }
+      return result;
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+      document.querySelectorAll('.fmt-num').forEach(function(el){
+        var v = el.getAttribute('data-val');
+        el.textContent = formatNumberRaw(v);
+      });
+      // investements period switcher: prefer data-day/month/year attributes on #invest-value, support date picker for Jour
+      try{
+        var investValue = document.getElementById('invest-value');
+        var investSelect = document.getElementById('invest-range');
+        var investDate = document.getElementById('invest-date');
+
+        function setDisplayedValueRaw(v){ if(!investValue) return; investValue.textContent = formatNumberRaw(v); }
+
+        async function fetchTotal(period, dateStr){
+          try{
+            var url = '/api/invest-totals/?period=' + encodeURIComponent(period);
+            if(dateStr) url += '&date=' + encodeURIComponent(dateStr);
+            var resp = await fetch(url, { credentials: 'same-origin' });
+            var j = await resp.json();
+            if(j && j.success){ setDisplayedValueRaw(j.total); }
+            else if(j && j.total !== undefined){ setDisplayedValueRaw(j.total); }
+            else { console.warn('unexpected invest totals response', j); }
+          }catch(err){ console.error('fetch invest total error', err); }
+        }
+
+        function initFromSelect(){
+          if(!investSelect) return;
+          var p = investSelect.value || 'month';
+          if(p === 'day'){
+            // show date input and fetch today's total
+            if(investDate) investDate.classList.remove('hidden');
+            // prefer server-provided data-day attribute as fast fallback
+            var fallback = investValue && investValue.getAttribute('data-day');
+            if(fallback !== null && fallback !== undefined){ setDisplayedValueRaw(fallback); }
+            // fetch authoritative value for today
+            fetchTotal('day', investDate && investDate.value ? investDate.value : null);
+          } else {
+            if(investDate) investDate.classList.add('hidden');
+            // use server-provided attribute for month/year first
+            var attr = investValue && investValue.getAttribute('data-' + p);
+            if(attr !== null && attr !== undefined){ setDisplayedValueRaw(attr); }
+            else {
+              // fetch if not present
+              fetchTotal(p);
+            }
+          }
+        }
+
+        if(investSelect){
+          investSelect.addEventListener('change', initFromSelect, { passive: true });
+          if(investDate){
+            investDate.addEventListener('change', function(){
+              // when a date is selected, fetch that day's totals
+              fetchTotal('day', investDate.value);
+            }, { passive: true });
+          }
+          // initialize
+          initFromSelect();
+        }
+      }catch(e){ console.error('invest switcher error', e); }
+    });
+  })();
+</script>
+            <p class="text-sm text-gray-500">Disponible</p>
+          </div>
+          <div>
+            <p class="text-3xl font-bold text-green-500">+8%</p>
+            <p class="text-sm text-gray-500">Mois</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+<script>
+  // Animate donut segments on page load with a small stagger
+  document.addEventListener('DOMContentLoaded', function () {
+    try {
+      // Compute pixel-based dash arrays from percentages so slices occupy full circle without gaps
+      // Only animate fallback paths that have a data-percent attribute (no explicit arc_d)
+      const paths = Array.from(document.querySelectorAll('.donut-path')).filter(p => p.hasAttribute('data-percent'));
+      let cumulativePct = 0;
+      if (paths.length > 0) {
+        console.group('donut-debug');
+        paths.forEach((p, i) => {
+          try {
+            const pct = parseFloat(p.getAttribute('data-percent') || '0') || 0;
+            let len = Math.max(1, Math.round(p.getTotalLength()));
+            const slicePx = Math.max(1, Math.round((pct / 100) * len));
+            const remPx = Math.max(0, len - slicePx);
+            const offsetPx = Math.round((-cumulativePct / 100) * len);
+            console.log(`fallback-path[${i}] len=${len} pct=${pct} slicePx=${slicePx} remPx=${remPx} offsetPx=${offsetPx}`);
+            p.style.transition = 'stroke-dasharray 500ms ease, stroke-dashoffset 500ms ease';
+            p.setAttribute('stroke-linecap', 'butt');
+            p.setAttribute('stroke-dasharray', `0 ${len}`);
+            p.setAttribute('stroke-dashoffset', offsetPx);
+            setTimeout(() => {
+              p.setAttribute('stroke-dasharray', `${slicePx} ${remPx}`);
+              p.setAttribute('stroke-dashoffset', offsetPx);
+            }, i * 120);
+            cumulativePct += pct;
+          } catch (err) {
+            console.error('donut render error', err);
+          }
+        });
+        console.groupEnd('donut-debug');
+      }
+    } catch (e) {
+      console.error('Donut animation error', e);
+    }
+  });
+<!-- Animation removed: donut is now rendered statically from server-provided stroke values -->

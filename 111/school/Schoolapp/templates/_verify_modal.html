@@ -1,0 +1,97 @@
+{% load static %}
+<div id="verifyModal" class="modal-overlay modal-backdrop hidden" style="position:fixed; inset:0; z-index:50; align-items:center; justify-content:center;">
+  <div class="modal bg-white rounded-lg shadow-lg w-11/12 max-w-4xl p-6" style="max-height:88vh;overflow:auto;">
+        <div style="position:sticky;top:0;z-index:60;background:#fff;padding:10px 12px;border-bottom:1px solid #eef2f7;margin-bottom:12px;">
+              <div id="verifyProgress" style="display:flex;gap:12px;margin:0;padding:0 6px;align-items:center;width:100%;justify-content:space-between;"> <!-- steps inserted here --> </div>
+        </div>
+        <div class="flex justify-between items-center mb-2" style="margin-top:8px;">
+              <h3 class="text-lg font-semibold">Fiche vérification</h3>
+              <div class="verify-top-actions">
+                    <button id="verifyCancelTop" class="btn-secondary">Annuler</button>
+                    <button id="closeVerify" class="icon-btn">✕</button>
+              </div>
+        </div>
+        <div id="verifyContent" style="padding-top:8px;">
+              <div style="display:flex;gap:20px;align-items:flex-start;">
+                    <div style="flex:1; display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px;">
+                          <div style="">
+                                <div style="font-size:12px;color:#6b7280;font-weight:700;">Nom</div>
+                                <div id="v_nom" style="font-size:14px;color:#111827;font-weight:600;"></div>
+                          </div>
+                          <div>
+                                <div style="font-size:12px;color:#6b7280;font-weight:700;">Prénom</div>
+                                <div id="v_prenom" style="font-size:14px;color:#111827;font-weight:600;"></div>
+                          </div>
+                          <div>
+                                <div style="font-size:12px;color:#6b7280;font-weight:700;">Sexe</div>
+                                <div id="v_sexe" style="font-size:14px;color:#111827;"></div>
+                          </div>
+                          <div>
+                                <div style="font-size:12px;color:#6b7280;font-weight:700;">Date de naissance</div>
+                                <div id="v_dob" style="font-size:14px;color:#111827;"></div>
+                          </div>
+                          <div>
+                                <div style="font-size:12px;color:#6b7280;font-weight:700;">Lieu</div>
+                                <div id="v_lieu" style="font-size:14px;color:#111827;"></div>
+                          </div>
+                          <div>
+                                <div style="font-size:12px;color:#6b7280;font-weight:700;">Nationalité</div>
+                                <div id="v_nat" style="font-size:14px;color:#111827;"></div>
+                          </div>
+                          <div>
+                                <div style="font-size:12px;color:#6b7280;font-weight:700;">NIN</div>
+                                <div id="v_nin" style="font-size:14px;color:#111827;"></div>
+                          </div>
+                          <div>
+                                <div style="font-size:12px;color:#6b7280;font-weight:700;">Email</div>
+                                <div id="v_email" style="font-size:14px;color:#111827;"></div>
+                          </div>
+                          <div style="grid-column: 1 / -1;">
+                                <div style="font-size:12px;color:#6b7280;font-weight:700;">Adresse</div>
+                                <div id="v_addr" style="font-size:14px;color:#111827;"></div>
+                          </div>
+                    </div>
+                    <div style="width:220px;text-align:center;flex-shrink:0;">
+                          <img id="v_photo" src="{{ STATIC_URL }}images/happy.gif" style="width:220px;height:220px;border-radius:12px;object-fit:cover;"/>
+                    </div>
+              </div>
+              <hr style="margin:12px 0"/>
+              <div>
+                    <h4 class="font-semibold">Documents</h4>
+                    <div style="display:flex;gap:12px;margin-top:8px;align-items:flex-start;">
+                          <div style="flex:1">
+                                <div><strong>Extrait de naissance</strong></div>
+                                <div id="v_extrait_preview" style="margin-top:6px;"></div>
+                                <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
+                                      <label class="file-picker">
+                                            <span class="file-label">Choisir un fichier</span>
+                                            <input class="file-input" id="picker_extrait" type="file" accept="image/*" />
+                                      </label>
+                                      <button id="upload_extrait_btn" class="upload-btn">Upload</button>
+                                      <div id="extrait_filename" style="font-size:13px;color:#6b7280;">Aucun fichier choisi</div>
+                                </div>
+                          </div>
+                          <div style="flex:1">
+                                <div><strong>Carte d'identité</strong></div>
+                                <div id="v_carte_preview" style="margin-top:6px;"></div>
+                                <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
+                                      <label class="file-picker">
+                                            <span class="file-label">Choisir un fichier</span>
+                                            <input class="file-input" id="picker_carte" type="file" accept="image/*" />
+                                      </label>
+                                      <button id="upload_carte_btn" class="upload-btn">Upload</button>
+                                      <div id="carte_filename" style="font-size:13px;color:#6b7280;">Aucun fichier choisi</div>
+                                </div>
+                          </div>
+                    </div>
+              </div>
+              <div style="margin-top:12px;text-align:right;">
+                    <div class="step-controls">
+                          <button id="stepBack" class="step-btn" title="Précédent">Précédent</button>
+                          <button id="stepNext" class="step-btn primary" title="Suivant">Suivant</button>
+                          <button id="verifySave" class="step-btn primary" style="margin-left:4px;">Enregistrer</button>
+                    </div>
+              </div>
+        </div>
+  </div>
+</div>

@@ -1,0 +1,13 @@
+Next steps for you (recommended)
+
+Create a Python virtualenv and install your project's requirements (Django, etc.). Example:
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+Build backend EXE:
+Open PowerShell in backend and run: python -m pip install pyinstaller pyinstaller --noconfirm --onefile run_server.spec
+After build, ensure dist/run_server.exe exists; copy it to backend if necessary.
+Build Electron installer:
+From electron run: npm install npm run dist
+Test installer on a clean Windows VM. The installed app will place backend in program files and run on localhost:8000.
+If you'd like I can:

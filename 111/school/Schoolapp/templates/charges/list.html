@@ -1,0 +1,515 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="card p-6 bg-white rounded-lg shadow-sm charges-container" style="position:relative; z-index:10; overflow:visible;">
+  <style>
+    /* Scoped styles for charges list (mobile-first) */
+    /* Colorful palette and animations */
+    :root{
+      --accent-a: #7c3aed; /* purple */
+      --accent-b: #06b6d4; /* teal */
+      --accent-c: #f97316; /* orange */
+      --accent-d: #06b6d4;
+      --card-grad: linear-gradient(90deg,var(--accent-a),var(--accent-b));
+    }
+    .charges-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+    .charges-table-wrapper{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .charges-table{ width:100%; border-collapse:separate; border-spacing:0 12px; min-width:720px; }
+    .charges-table thead th{ text-transform:uppercase; font-size:12px; color:#6b7280; font-weight:700; padding:8px 12px; text-align:left; }
+    .charges-table tbody tr{ background:var(--bg-card); border-radius:10px; box-shadow:0 6px 18px rgba(2,6,23,0.06); transition:transform .12s ease, box-shadow .12s ease; }
+    .charges-table tbody tr{ transform-origin: left center; }
+    .charges-table tbody tr td{ padding:14px 12px; vertical-align:middle; }
+    .charges-table tbody tr:hover{ transform:translateY(-6px); box-shadow:0 20px 40px rgba(2,6,23,0.10); }
+    /* animated gradient left accent for each card row on wide screens */
+    .charges-table tbody tr::before{ content:''; display:block; width:6px; height:100%; position:absolute; left:0; top:0; border-radius:10px 0 0 10px; background:var(--card-grad); opacity:0; transition:opacity .35s ease; }
+    .charges-table tbody tr:hover::before{ opacity:1; }
+    .charges-type{ color:#075985; font-weight:600; }
+    .charges-amount{ color:#059669; font-weight:700; }
+    .charges-date{ color:#6b7280; }
+    .charges-ref{ color:#0ea5a4; font-weight:600; }
+    .charges-mode{ color:#334155; }
+    .charges-actions { text-align:right; }
+    /* Use the global btn-* utility classes for consistent styling. Keep lightweight helpers for spacing only. */
+    .charges-edit-btn{ margin-right:8px; }
+
+    /* Mobile: stack rows into card-like blocks and show labels via data-label attribute */
+    @media (max-width:800px){
+      .charges-table{ min-width:0 }
+      .charges-table thead{ display:none; }
+      .charges-table tbody tr{ 
+        display:block; 
+        margin-bottom:16px; 
+        padding:16px; 
+        position:relative; 
+        overflow:hidden; 
+        animation:cardPop .32s cubic-bezier(.2,.9,.3,1) both;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+        background: linear-gradient(135deg, rgba(124,58,237,0.03), rgba(6,182,212,0.03)) !important;
+        border-left: 4px solid #7c3aed !important;
+      }
+      .charges-table tbody tr:hover{ 
+        transform: translateY(-4px) !important; 
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+      }
+      .charges-table tbody tr td{ 
+        display:flex; 
+        justify-content:space-between; 
+        padding:12px 0; 
+        border:none; 
+        align-items: center;
+      }
+      .charges-table tbody tr td::before{ 
+        content: attr(data-label); 
+        font-weight:700; 
+        color:#6b7280; 
+        margin-right:12px; 
+        display:block; 
+        flex:0 0 35%; 
+        font-size: 0.9rem;
+      }
+      .charges-table tbody tr td .fmt-num{ 
+        text-align:right; 
+        font-weight: 700;
+        color: #059669;
+      }
+      .charges-actions{ 
+        text-align:right; 
+        display:flex; 
+        gap:8px; 
+        justify-content:flex-end; 
+        margin-top: 8px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(0,0,0,0.06);
+      }
+      .charges-top{ 
+        flex-direction:column; 
+        gap:12px; 
+        align-items:stretch; 
+        margin-bottom: 1.5rem;
+      }
+      .charges-top h2 {
+        font-size: 1.5rem !important;
+        margin-bottom: 0.5rem;
+      }
+      .charges-top .btn-primary, .charges-top .btn-secondary{ 
+        width:100%; 
+        padding: 14px 20px !important;
+        font-size: 15px !important;
+        border-radius: 12px !important;
+      }
+      .modal.card{ 
+        width:100% !important; 
+        max-width:100% !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        max-height: 100vh !important;
+        overflow-y: auto !important;
+      }
+      #aiModal{ 
+        align-items:flex-start; 
+        padding:0 !important;
+      }
+      #aiModal .modal.card {
+        border-radius: 20px 20px 0 0 !important;
+        margin-top: auto !important;
+      }
+      
+      /* Stagger row animations */
+      .charges-table tbody tr:nth-child(1) { animation-delay: 0.1s; }
+      .charges-table tbody tr:nth-child(2) { animation-delay: 0.2s; }
+      .charges-table tbody tr:nth-child(3) { animation-delay: 0.3s; }
+      .charges-table tbody tr:nth-child(4) { animation-delay: 0.4s; }
+      .charges-table tbody tr:nth-child(5) { animation-delay: 0.5s; }
+      
+      /* Touch feedback */
+      .charges-table tbody tr:active {
+        transform: scale(0.98) !important;
+      }
+    }
+
+    /* Keyframes */
+    @keyframes gradientShift { 0%{ background-position:0% 50% } 50%{ background-position:100% 50% } 100%{ background-position:0% 50% } }
+    @keyframes cardPop { from{ opacity:0; transform: translateY(8px) scale(.995) } to{ opacity:1; transform: translateY(0) scale(1) } }
+    @keyframes fadeInUp { from{ opacity:0; transform: translateY(6px) } to{ opacity:1; transform: translateY(0) } }
+
+    /* Colorful title gradient */
+    .charges-top h2{ background: linear-gradient(90deg, var(--accent-b), var(--accent-a)); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight:800; animation:gradientShift 6s linear infinite; background-size:200% 200%; }
+
+    /* Gradient buttons */
+    .charges-top .btn-primary{ background: linear-gradient(90deg,var(--accent-a),var(--accent-b)); color:#fff; box-shadow:0 8px 30px rgba(124,58,237,0.12); transition: transform .16s ease, box-shadow .16s ease; }
+    .charges-top .btn-primary:hover{ transform:translateY(-3px) scale(1.01); box-shadow:0 18px 40px rgba(124,58,237,0.18); }
+    .charges-top .btn-secondary{ background: linear-gradient(90deg,#fff,#f3f4f6); border:1px solid rgba(124,58,237,0.06); }
+
+    /* Animated row entrance for wider screens too */
+    .charges-table tbody tr.animate-in{ animation: fadeInUp .35s ease both; }
+
+    /* Chat bubble styles */
+    .chat-bubble{ display:inline-block; padding:10px 12px; border-radius:10px; max-width:86%; opacity:0; transform:translateY(6px); transition: opacity .28s ease, transform .28s ease; }
+    .chat-bubble.in{ opacity:1; transform:translateY(0); }
+    .chat-bubble.user{ background: linear-gradient(90deg,#e6f4ff,#dbeefe); color:#03314b; }
+    .chat-bubble.assistant{ background: linear-gradient(90deg,#fff7ed,#fff1e6); color:#0f172a; }
+  </style>
+
+    <div class="charges-top">
+    <h2 class="text-xl font-semibold">Charges</h2>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button id="openAiChatBtn" class="btn-secondary px-3 py-2 rounded-lg inline-flex items-center gap-2"><span style="font-size:18px;line-height:1">🧠</span> G intelligence</button>
+      <a href="{% url 'charges_add' %}" class="btn-primary px-3 py-2 rounded-lg inline-flex items-center gap-2"><span style="font-size:18px;line-height:1">＋</span> Ajouter une charge</a>
+    </div>
+  </div>
+
+  <!-- AI chatbot modal: chat history, message input, optional file attachment -->
+  <div id="aiModal" class="modal-overlay" style="display:none; position:fixed; inset:0; z-index:120; padding:20px; background: rgba(2,6,23,0.08);">
+    <div class="modal card" style="border-radius:14px;box-shadow:0 28px 80px rgba(2,6,23,0.14);width:920px;max-width:calc(100% - 40px);padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="margin:0;font-size:16px;font-weight:700;">G intelligence — discuter et remplir une charge</h3>
+        <button id="aiModalClose" class="modal-close" aria-label="Fermer">✕</button>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div style="flex:1;min-height:320px;display:flex;flex-direction:column;">
+          <div id="ai_chat_history" style="flex:1;overflow:auto;padding:12px;border:1px solid #eef2f7;border-radius:8px;background:#fff;max-height:420px;">
+            <!-- messages will be appended here -->
+          </div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="ai_chat_input" placeholder="Écrire un message au bot..." style="flex:1;padding:10px;border-radius:6px;border:1px solid #e9eef3;" />
+              <input id="ai_chat_file" type="file" accept="image/*,application/pdf" style="display:none;" multiple />
+              <button id="ai_attach_btn" class="btn-secondary px-3 py-1 rounded">📎</button>
+              <button id="ai_chat_send" class="btn-primary px-3 py-1 rounded">Envoyer</button>
+            </div>
+            <div id="ai_attachments" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+          </div>
+        </div>
+        <div style="width:320px;">
+          <label class="block text-sm font-medium">Dernière réponse du bot</label>
+          <textarea id="ai_modal_response" style="width:100%;height:220px;padding:8px;border-radius:6px;border:1px solid #e9eef3;" readonly></textarea>
+          <div style="margin-top:8px;display:flex;justify-content:space-between;gap:8px;">
+            <button id="ai_modal_open_form" class="btn px-3 py-1 rounded btn-success" disabled>Ouvrir formulaire pré-rempli</button>
+            <button id="ai_modal_clear" class="btn-secondary px-3 py-1 rounded">Effacer</button>
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:#6b7280;">Vous pouvez envoyer du texte et/ou joindre un fichier. Le bot utilisera la pièce jointe comme contexte.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="charges-table-wrapper">
+  <table class="charges-table">
+    <thead>
+      <tr class="text-left text-sm text-gray-600">
+        <th>ID</th><th>Type</th><th>Montant</th><th>Date</th><th>Formation</th><th>Référence</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in charges %}
+      <tr>
+        <td data-label="ID">#{{ c.id }}</td>
+        <td data-label="Type"><span class="charges-type">{{ c.type_charge }}</span></td>
+        <td data-label="Montant"><span class="charges-amount"><span class="fmt-num" data-val="{{ c.montant }}"></span> DA</span></td>
+        <td data-label="Date"><span class="charges-date">{{ c.date_paiement }}</span></td>
+        <td data-label="Formation">
+          {% if c.formation %}
+            <span class="charges-mode">{{ c.formation.nom }}</span>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td data-label="Référence"><span class="charges-ref">{{ c.reference }}</span></td>
+        <td data-label="Actions" class="charges-actions">
+          <a href="{% url 'charges_edit' c.id %}" class="btn-primary px-3 py-1 rounded">Modifier</a>
+            <form method="post" action="{% url 'charges_delete' c.id %}" style="display:inline" class="delete-charge-form" data-charge-id="{{ c.id }}">
+            {% csrf_token %}
+            <button type="submit" class="btn-danger delete-btn icon-btn px-3 py-1 rounded">Supprimer</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+  <tr><td colspan="8" class="text-gray-500">Aucune charge trouvée.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <script>
+  // AI chatbot modal logic for charges list (chat + optional file)
+  (function(){
+    var openBtn = document.getElementById('openAiChatBtn');
+    var modal = document.getElementById('aiModal');
+    var closeBtn = document.getElementById('aiModalClose');
+    var historyDiv = document.getElementById('ai_chat_history');
+    var input = document.getElementById('ai_chat_input');
+    var fileInput = document.getElementById('ai_chat_file');
+    var attachBtn = document.getElementById('ai_attach_btn');
+    var sendBtn = document.getElementById('ai_chat_send');
+    var respTa = document.getElementById('ai_modal_response');
+    var openFormBtn = document.getElementById('ai_modal_open_form');
+    var clearBtn = document.querySelector('#aiModal .btn-secondary');
+
+    function openModal(){ modal.style.display = 'flex'; modal.style.alignItems='center'; modal.style.justifyContent='center'; }
+    function closeModal(){ modal.style.display = 'none'; }
+    if(openBtn) openBtn.addEventListener('click', openModal);
+    if(closeBtn) closeBtn.addEventListener('click', closeModal);
+    if(modal) modal.addEventListener('click', function(e){ if(e.target === modal) closeModal(); });
+
+    function getCSRF(){
+      var el = document.querySelector('input[name="csrfmiddlewaretoken"]');
+      if(el) return el.value;
+      var v = document.cookie.split('; ').find(function(c){ return c.indexOf('csrftoken=') === 0; });
+      return v ? v.split('=')[1] : null;
+    }
+
+    function appendMessage(role, text){
+      var wrap = document.createElement('div');
+      wrap.style.marginBottom = '8px';
+      var inner = document.createElement('div');
+      var bubble = document.createElement('div');
+      bubble.className = 'chat-bubble ' + (role === 'user' ? 'user' : 'assistant');
+      bubble.innerText = text;
+      // wrapper alignment
+      inner.style.textAlign = (role === 'user') ? 'right' : 'left';
+      inner.appendChild(bubble);
+      wrap.appendChild(inner);
+      historyDiv.appendChild(wrap);
+      // animate in
+      setTimeout(function(){ bubble.classList.add('in'); }, 20);
+      historyDiv.scrollTop = historyDiv.scrollHeight;
+    }
+
+    function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    attachBtn.addEventListener('click', function(){ fileInput.click(); });
+
+    // show previews for selected files
+    var currentAttachments = [];
+    fileInput.addEventListener('change', function(){
+      var container = document.getElementById('ai_attachments');
+      container.innerHTML = '';
+      currentAttachments = [];
+      Array.from(fileInput.files).forEach(function(f, idx){
+        var item = document.createElement('div');
+        item.style.border = '1px solid #e6edf3';
+        item.style.padding = '6px';
+        item.style.borderRadius = '6px';
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
+        item.style.gap = '8px';
+        item.style.minWidth = '120px';
+        var thumb = document.createElement('div');
+        thumb.style.width = '48px'; thumb.style.height = '48px'; thumb.style.flex='0 0 48px'; thumb.style.background='#f3f4f6'; thumb.style.display='flex'; thumb.style.alignItems='center'; thumb.style.justifyContent='center'; thumb.style.overflow='hidden'; thumb.style.borderRadius='4px';
+        if(f.type && f.type.indexOf('image')===0){
+          var reader = new FileReader();
+          reader.onload = function(e){ var img = document.createElement('img'); img.src = e.target.result; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover'; thumb.innerHTML=''; thumb.appendChild(img); };
+          reader.readAsDataURL(f);
+        } else {
+          thumb.innerText = 'PDF';
+        }
+        var meta = document.createElement('div');
+        meta.style.flex='1';
+        var name = document.createElement('div'); name.style.fontSize='13px'; name.style.fontWeight='600'; name.innerText = f.name;
+        var status = document.createElement('div'); status.style.fontSize='12px'; status.style.color='#6b7280'; status.innerText = 'Prêt';
+        meta.appendChild(name); meta.appendChild(status);
+        item.appendChild(thumb); item.appendChild(meta);
+        container.appendChild(item);
+        currentAttachments.push({file: f, statusEl: status, itemEl: item});
+      });
+    });
+
+    sendBtn.addEventListener('click', function(){
+      var txt = input.value && input.value.trim();
+      var files = Array.from(fileInput.files || []);
+      if(!txt && files.length === 0){ alert('Écrire un message ou joindre un fichier.'); return; }
+      // show user message bubble
+      if(txt){ appendMessage('user', txt); }
+      if(files.length){
+        files.forEach(function(f){ appendMessage('user', '[Fichier joint: ' + f.name + ']'); });
+      }
+      input.value = '';
+      // prepare form
+      var fd = new FormData();
+      if(txt) fd.append('message', txt);
+      files.forEach(function(f){ fd.append('file', f); });
+      sendBtn.disabled = true; sendBtn.textContent = 'Envoi...'; openFormBtn.disabled = true;
+      // set each attachment status to 'Envoi en cours'
+      currentAttachments.forEach(function(a){ if(a.statusEl) a.statusEl.innerText = 'Envoi...'; });
+      var headers = {};
+      var csrf = getCSRF(); if(csrf) headers['X-CSRFToken'] = csrf;
+      fetch('{% url "charges_chat_ai" %}', { method: 'POST', body: fd, headers: headers, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(json){
+        sendBtn.disabled = false; sendBtn.textContent = 'Envoyer';
+        // update attachment statuses
+        if(currentAttachments && currentAttachments.length){
+          currentAttachments.forEach(function(a){ try{ a.statusEl.innerText = (json && json.success) ? 'Traitée' : 'Erreur'; }catch(e){} });
+        }
+        if(json && json.success){
+          var reply = json.reply || '';
+          appendMessage('assistant', reply);
+          respTa.value = reply;
+          // enable open form and store structured data
+          window.__ai_structured = json.structured || null;
+          window.__ai_ocr = json.ocr_text || '';
+          if((json.structured && Object.keys(json.structured).length>0) || (reply && reply.trim())){
+            openFormBtn.disabled = false;
+          }
+          // show OCR preview under assistant
+          if(json.ocr_text){
+            var odiv = document.createElement('div'); odiv.style.fontSize='12px'; odiv.style.color='#6b7280'; odiv.style.marginTop='6px'; odiv.innerText = 'Résumé auto (OCR): ' + json.ocr_text.slice(0,300) + (json.ocr_text.length>300? '...':'');
+            var last = historyDiv.lastChild; if(last) last.appendChild(odiv);
+          }
+        } else {
+          appendMessage('assistant', 'Erreur: ' + (json.error || 'aucune réponse'));
+        }
+      }).catch(function(err){ sendBtn.disabled = false; sendBtn.textContent = 'Envoyer';
+        if(currentAttachments && currentAttachments.length){ currentAttachments.forEach(function(a){ try{ a.statusEl.innerText = 'Erreur réseau'; }catch(e){} }); }
+        appendMessage('assistant', 'Erreur réseau: ' + err); });
+    });
+
+    clearBtn.addEventListener('click', function(){
+      historyDiv.innerHTML = ''; respTa.value = ''; openFormBtn.disabled = true; fileInput.value = ''; input.value = ''; 
+      try{ var att = document.getElementById('ai_attachments'); if(att) att.innerHTML = ''; }catch(e){}
+      window.__ai_structured = null; window.__ai_ocr = '';
+    });
+
+    openFormBtn.addEventListener('click', function(){
+      var url = '{% url "charges_add" %}';
+      var params = [];
+      // prefer structured data if available
+      var s = window.__ai_structured || null;
+      if(s && typeof s === 'object'){
+        if(s.type) params.push('ai_type=' + encodeURIComponent(s.type));
+        if(s.montant) params.push('ai_montant=' + encodeURIComponent(s.montant));
+        if(s.date) params.push('ai_date=' + encodeURIComponent(s.date));
+        if(s.reference) params.push('ai_reference=' + encodeURIComponent(s.reference));
+        if(s.remarque) params.push('ai_remarque=' + encodeURIComponent(s.remarque));
+      } else {
+        var txt = respTa.value || '';
+        if(txt) params.push('ai_remarque=' + encodeURIComponent(txt));
+      }
+      var qp = params.length ? ('?' + params.join('&')) : '';
+      window.open(url + qp, '_blank');
+    });
+
+    // allow sending with Enter
+    input.addEventListener('keydown', function(e){ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendBtn.click(); } });
+  })();
+  </script>
+  <script>
+  // Staggered entrance animation for charges rows
+  (function(){
+    document.addEventListener('DOMContentLoaded', function(){
+      var rows = Array.from(document.querySelectorAll('.charges-table tbody tr'));
+      rows.forEach(function(r, i){
+        setTimeout(function(){ r.classList.add('animate-in'); }, 60 * i);
+      });
+    });
+  })();
+  </script>
+</div>
+  <script>
+  // Replace inline confirm() with a nicer modal confirmation and harden overlay stacking.
+  (function(){
+    function ensureOverlay(o){
+      o.style.zIndex = 99999;
+      o.style.position = 'fixed';
+      o.style.left = 0; o.style.top = 0; o.style.right = 0; o.style.bottom = 0;
+      // lighter backdrop so table remains visible
+      o.style.background = 'rgba(2,6,23,0.06)';
+      if(o.parentNode !== document.body) document.body.appendChild(o);
+    }
+
+    // Attach to existing overlays (if any)
+    document.querySelectorAll('.modal-overlay').forEach(function(o){ ensureOverlay(o); });
+
+    // Utility to show a confirmation modal. Calls cb(true) if confirmed.
+    function showConfirm(message, cb){
+      // create overlay
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.position = 'fixed'; overlay.style.inset = '0'; overlay.style.display = 'flex'; overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
+      overlay.style.zIndex = 99999; overlay.style.background = 'rgba(2,6,23,0.06)'; overlay.style.padding = '20px';
+
+      var card = document.createElement('div');
+      card.className = 'modal card';
+      card.style.background = 'var(--bg-card)';
+      card.style.borderRadius = '10px'; card.style.padding = '18px'; card.style.maxWidth = '420px'; card.style.width = '100%'; card.style.boxShadow = '0 28px 80px rgba(2,6,23,0.14)';
+
+      var h = document.createElement('h3'); h.style.margin = '0 0 8px 0'; h.style.fontSize = '16px'; h.style.fontWeight = 700; h.textContent = message;
+      var actions = document.createElement('div'); actions.style.display='flex'; actions.style.justifyContent='flex-end'; actions.style.gap='8px'; actions.style.marginTop='12px';
+
+      var cancelBtn = document.createElement('button'); cancelBtn.type='button'; cancelBtn.className='btn-secondary px-3 py-1 rounded'; cancelBtn.textContent='Annuler';
+      var yesBtn = document.createElement('button'); yesBtn.type='button'; yesBtn.className='btn-danger px-3 py-1 rounded'; yesBtn.textContent='Supprimer';
+
+      actions.appendChild(cancelBtn); actions.appendChild(yesBtn);
+      card.appendChild(h); card.appendChild(actions);
+      overlay.appendChild(card);
+      document.body.appendChild(overlay);
+
+      function cleanup(){ if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+      cancelBtn.addEventListener('click', function(){ cleanup(); cb(false); });
+      overlay.addEventListener('click', function(e){ if(e.target === overlay){ cleanup(); cb(false); } });
+      yesBtn.addEventListener('click', function(){ cleanup(); cb(true); });
+      document.addEventListener('keydown', function escHandler(e){ if(e.key === 'Escape'){ cleanup(); cb(false); document.removeEventListener('keydown', escHandler); } });
+    }
+
+    // intercept delete forms
+    document.querySelectorAll('.delete-charge-form').forEach(function(frm){
+      frm.addEventListener('submit', function(e){
+        e.preventDefault();
+        var id = frm.dataset.chargeId || '';
+        showConfirm('Supprimer la charge #' + id + ' ? Attention, cette action est irréversible.', function(ok){
+          if(ok){
+            // submit the form programmatically
+            frm.submit();
+          }
+        });
+      });
+    });
+
+    // also ensure any modal overlays created elsewhere are appended and visible
+    var mo = document.querySelectorAll('.modal-overlay');
+    mo.forEach(function(o){ ensureOverlay(o); });
+  })();
+  </script>
+  <script>
+  // Format .fmt-num fields: insert space every 3 digits and remove trailing .00 (preserve decimals if present)
+  (function(){
+    function formatNumberRaw(v){
+      if(v === null || v === undefined) return '-';
+      var s = String(v).trim();
+      if(s === '') return '-';
+      var neg = false;
+      if(s[0] === '-'){
+        neg = true; s = s.slice(1);
+      }
+      s = s.replace(/\s+/g, '');
+      var lastComma = s.lastIndexOf(',');
+      var lastDot = s.lastIndexOf('.');
+      var intPart = s; var fracPart = '';
+      if(lastComma > -1 && lastComma > lastDot){
+        intPart = s.slice(0, lastComma); fracPart = s.slice(lastComma+1);
+      } else if(lastDot > -1){
+        intPart = s.slice(0, lastDot); fracPart = s.slice(lastDot+1);
+      }
+      intPart = intPart.replace(/[^0-9]/g, '');
+      fracPart = fracPart.replace(/[^0-9]/g, '');
+      if(intPart === '') intPart = '0';
+      // drop trailing zeros in fractional part
+      fracPart = fracPart.replace(/0+$/,'');
+      // format integer with spaces
+      var outInt = '';
+      for(var i=0;i<intPart.length;i++){
+        var pos = intPart.length - i;
+        outInt += intPart[i];
+        if(pos>1 && pos%3===1) outInt += ' ';
+      }
+      var result = (neg?'-':'') + outInt;
+      if(fracPart && fracPart.length>0){ result += '.' + fracPart; }
+      return result;
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+      document.querySelectorAll('.fmt-num').forEach(function(el){
+        var v = el.getAttribute('data-val');
+        el.textContent = formatNumberRaw(v);
+      });
+    });
+  })();
+  </script>
+{% endblock %}

@@ -1,0 +1,59 @@
+﻿python : send: 'mail from:<geniesysteme.school@gmail.com> size=3002\r\n'
+Au caractère Ligne:1 : 188
++ ... olltmaxqi'; python manage.py send_test_email 'rayneera654@gmail.com'  ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (send: 'mail fro... size=3002\r\n':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+reply: b'250 2.1.0 OK ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp\r\n'
+reply: retcode (250); Msg: b'2.1.0 OK ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp'
+send: 'rcpt to:<rayneera654@gmail.com>\r\n'
+reply: b'250 2.1.5 OK ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp\r\n'
+reply: retcode (250); Msg: b'2.1.5 OK ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp'
+send: 'data\r\n'
+reply: b'354 Go ahead ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp\r\n'
+reply: retcode (354); Msg: b'Go ahead ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp'
+data: (354, b'Go ahead ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp')
+send: b'Content-Type: multipart/alternative;\r\n boundary="===============8868996097455333773=="\r\nMIME-Version: 
+1.0\r\nSubject: Test SMTP\r\nFrom: geniesysteme.school@gmail.com\r\nTo: rayneera654@gmail.com\r\nDate: Thu, 11 Sep 
+2025 09:48:52 -0000\r\nMessage-ID: <175758413239.2512.3325599495106925421@DESKTOP-A14IRB2>\r\n\r\n--===============886
+8996097455333773==\r\nContent-Type: text/plain; charset="utf-8"\r\nMIME-Version: 1.0\r\nContent-Transfer-Encoding: 
+8bit\r\n\r\n\r\n  \r\n    \r\n      \r\n        \r\n          \r\n            \r\n              
+G\xc3\xa9nieSchool\r\n            \r\n            \r\n              \r\n                Bienvenue, Jean SMTPTest\r\n  
+              Nous sommes ravis de vous compter parmi nos \xc3\xa9tudiants pour la formation Informatique.\r\n        
+        Vous pouvez acc\xc3\xa9der \xc3\xa0 votre espace et consulter vos informations de formation. Si vous avez des 
+questions, r\xc3\xa9pondez simplement \xc3\xa0 cet email.\r\n                Cordialement,L\'\xc3\xa9quipe 
+G\xc3\xa9nieSchool\r\n                \r\n                Vous recevez cet email car vous avez \xc3\xa9t\xc3\xa9 
+ajout\xc3\xa9 comme \xc3\xa9tudiant dans notre syst\xc3\xa8me.\r\n              \r\n            \r\n            \r\n  
+            \xc2\xa9 G\xc3\xa9nieSchool\r\n            \r\n          \r\n        \r\n      \r\n    \r\n  
+\r\n\r\n\r\n--===============8868996097455333773==\r\nContent-Type: text/html; charset="utf-8"\r\nMIME-Version: 
+1.0\r\nContent-Transfer-Encoding: 8bit\r\n\r\n<html>\r\n  <body style="font-family: Arial, Helvetica, sans-serif; 
+color: #111; line-height: 1.4;">\r\n    <table width="100%" cellpadding="0" cellspacing="0">\r\n      <tr>\r\n        
+<td style="padding: 20px; background: #f7fafc;">\r\n          <table width="600" align="center" cellpadding="0" 
+cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;">\r\n            <tr>\r\n              
+<td style="background:#10b981;padding:20px 
+24px;color:#fff;font-weight:700;font-size:20px;">G\xc3\xa9nieSchool</td>\r\n            </tr>\r\n            <tr>\r\n 
+             <td style="padding:24px;">\r\n                <h2 style="margin:0 0 8px 0;">Bienvenue, Jean 
+SMTPTest</h2>\r\n                <p style="margin:0 0 12px 0;">Nous sommes ravis de vous compter parmi nos 
+\xc3\xa9tudiants pour la formation <strong>Informatique</strong>.</p>\r\n                <p style="margin:0 0 12px 
+0;">Vous pouvez acc\xc3\xa9der \xc3\xa0 votre espace et consulter vos informations de formation. Si vous avez des 
+questions, r\xc3\xa9pondez simplement \xc3\xa0 cet email.</p>\r\n                <p style="margin:0 0 18px 
+0;">Cordialement,<br/>L\'\xc3\xa9quipe G\xc3\xa9nieSchool</p>\r\n                <hr 
+style="border:none;border-top:1px solid #eef2f7; margin: 12px 0;"/>\r\n                <p 
+style="font-size:12px;color:#6b7280;">Vous recevez cet email car vous avez \xc3\xa9t\xc3\xa9 ajout\xc3\xa9 comme 
+\xc3\xa9tudiant dans notre syst\xc3\xa8me.</p>\r\n              </td>\r\n            </tr>\r\n            <tr>\r\n    
+          <td style="background:#f1f5f9;padding:14px 24px;font-size:12px;color:#6b7280;text-align:center;">\xc2\xa9 
+G\xc3\xa9nieSchool</td>\r\n            </tr>\r\n          </table>\r\n        </td>\r\n      </tr>\r\n    
+</table>\r\n  </body>\r\n</html>\r\n\r\n--===============8868996097455333773==--\r\n.\r\n'
+reply: b'250 2.0.0 OK  1757584133 ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp\r\n'
+reply: retcode (250); Msg: b'2.0.0 OK  1757584133 ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp'
+data: (250, b'2.0.0 OK  1757584133 ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp')
+send: 'quit\r\n'
+reply: b'221 2.0.0 closing connection ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp\r\n'
+reply: retcode (221); Msg: b'2.0.0 closing connection ffacd0b85a97d-3e7607ccf88sm1817790f8f.33 - gsmtp'
+EMAIL_BACKEND= django.core.mail.backends.smtp.EmailBackend
+[email] _safe_send: rendering template email/welcome_etudiant.html for rayneera654@gmail.com
+[email] _safe_send: rendered template, length: 1597
+[email] _safe_send: enabled smtplib debuglevel=1
+[email] _safe_send: send_mail returned for rayneera654@gmail.com
+Email send attempted

@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GénieSchool - Mon Planning</title>
+    {% load static %}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f5f5f7;
+            color: #333;
+        }
+
+        body {
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px 16px;
+        }
+
+        /* Date Navigation */
+        .date-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .date-nav button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .date-nav button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .date-nav button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .current-date {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .today-btn {
+            background: #f0f0f0 !important;
+            color: #667eea !important;
+            padding: 8px 16px !important;
+        }
+
+        /* Calendar View Toggle */
+        .view-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-btn {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        /* Events List */
+        .events-list {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .event-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            display: flex;
+        }
+
+        .event-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .event-time {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            min-width: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .event-hour {
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .event-period {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        .event-content {
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .event-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .event-meta {
+            display: grid;
+            gap: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .meta-icon {
+            font-size: 16px;
+            min-width: 20px;
+        }
+
+        .event-status {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-upcoming {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status-today {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-live {
+            background: #fff3e0;
+            color: #e65100;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .event-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-action {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            background: #f0f0f0;
+            color: #667eea;
+        }
+
+        .btn-action:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #666;
+        }
+
+        .empty-desc {
+            font-size: 14px;
+            color: #999;
+        }
+
+        /* Mini Calendar */
+        .mini-calendar {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-top: 20px;
+        }
+
+        .mini-calendar-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .weekday {
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            padding: 8px 0;
+        }
+
+        .days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #f0f0f0;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .day:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .day.today {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .day.has-events {
+            border: 2px solid #667eea;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+            z-index: 999;
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 12px;
+            color: #999;
+            text-decoration: none;
+            font-size: 12px;
+            transition: color 0.3s ease;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .event-card {
+                flex-direction: column;
+            }
+
+            .event-time {
+                flex-direction: row;
+                justify-content: flex-start;
+                min-width: auto;
+                gap: 12px;
+            }
+
+            .event-hour {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .container {
+                padding: 16px 12px;
+            }
+
+            .current-date {
+                font-size: 16px;
+            }
+
+            .event-card {
+                flex-direction: column;
+            }
+
+            .event-time {
+                padding: 12px;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .event-hour {
+                font-size: 16px;
+            }
+
+            .event-period {
+                margin-top: 0;
+            }
+
+            .event-title {
+                font-size: 14px;
+            }
+
+            .event-meta {
+                gap: 6px;
+                font-size: 12px;
+            }
+
+            .mini-calendar {
+                font-size: 12px;
+            }
+
+            .day {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>Mon Planning</h1>
+        <a href="/dashboard/" class="back-btn">← Dashboard</a>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Date Navigation -->
+        <div class="date-nav">
+            <button onclick="previousDay()">← Jour précédent</button>
+            <span class="current-date" id="currentDate">Lundi 9 Déc 2024</span>
+            <button onclick="nextDay()">Jour suivant →</button>
+        </div>
+
+        <button class="today-btn" onclick="goToday()" style="width: 100%; margin-bottom: 20px;">Aujourd'hui</button>
+
+        <!-- View Toggle -->
+        <div class="view-toggle">
+            <button class="toggle-btn active" onclick="switchView('day')">📅 Jour</button>
+            <button class="toggle-btn" onclick="switchView('week')">📆 Semaine</button>
+            <button class="toggle-btn" onclick="switchView('month')">📊 Mois</button>
+        </div>
+
+        <!-- Events List -->
+        <div class="events-list">
+            <!-- Event 1 -->
+            <div class="event-card">
+                <div class="event-time">
+                    <div class="event-hour">09</div>
+                    <div class="event-period">:00</div>
+                </div>
+                <div class="event-content">
+                    <div class="event-title">Cours: Python Avancé</div>
+                    <div class="event-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">📍</span>
+                            <span>Salle 101 - 3h</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">👨‍🏫</span>
+                            <span>Formateur: M. Kouadio</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">👥</span>
+                            <span>Groupe: GR1</span>
+                        </div>
+                    </div>
+                    <div class="event-status">
+                        <span class="status-badge status-upcoming">À venir</span>
+                        <div class="event-actions">
+                            <button class="btn-action">Rejoindre</button>
+                            <button class="btn-action">Plus</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event 2 -->
+            <div class="event-card">
+                <div class="event-time">
+                    <div class="event-hour">14</div>
+                    <div class="event-period">:00</div>
+                </div>
+                <div class="event-content">
+                    <div class="event-title">Projet Web - Présentation</div>
+                    <div class="event-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">📍</span>
+                            <span>Salle 202 - 2h</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">👨‍🏫</span>
+                            <span>Formateur: Mme Diane</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">👥</span>
+                            <span>Groupe: GR2</span>
+                        </div>
+                    </div>
+                    <div class="event-status">
+                        <span class="status-badge status-upcoming">À venir</span>
+                        <div class="event-actions">
+                            <button class="btn-action">Rejoindre</button>
+                            <button class="btn-action">Plus</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event 3 -->
+            <div class="event-card">
+                <div class="event-time">
+                    <div class="event-hour">16</div>
+                    <div class="event-period">:30</div>
+                </div>
+                <div class="event-content">
+                    <div class="event-title">Atelier Design UI/UX</div>
+                    <div class="event-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">📍</span>
+                            <span>Salle 103 - 1.5h</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">👨‍🏫</span>
+                            <span>Formateur: M. Yannick</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">👥</span>
+                            <span>Groupe: GR1</span>
+                        </div>
+                    </div>
+                    <div class="event-status">
+                        <span class="status-badge status-upcoming">À venir</span>
+                        <div class="event-actions">
+                            <button class="btn-action">Rejoindre</button>
+                            <button class="btn-action">Plus</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mini Calendar -->
+        <div class="mini-calendar">
+            <div class="mini-calendar-title">📅 Décembre 2024</div>
+            <div class="weekdays">
+                <div class="weekday">Lun</div>
+                <div class="weekday">Mar</div>
+                <div class="weekday">Mer</div>
+                <div class="weekday">Jeu</div>
+                <div class="weekday">Ven</div>
+                <div class="weekday">Sam</div>
+                <div class="weekday">Dim</div>
+            </div>
+            <div class="days">
+                <div class="day" style="color: #999;">25</div>
+                <div class="day" style="color: #999;">26</div>
+                <div class="day" style="color: #999;">27</div>
+                <div class="day" style="color: #999;">28</div>
+                <div class="day" style="color: #999;">29</div>
+                <div class="day" style="color: #999;">30</div>
+                <div class="day" style="color: #999;">01</div>
+
+                <div class="day">02</div>
+                <div class="day">03</div>
+                <div class="day">04</div>
+                <div class="day">05</div>
+                <div class="day">06</div>
+                <div class="day">07</div>
+                <div class="day">08</div>
+
+                <div class="day today">09</div>
+                <div class="day has-events">10</div>
+                <div class="day">11</div>
+                <div class="day has-events">12</div>
+                <div class="day">13</div>
+                <div class="day">14</div>
+                <div class="day">15</div>
+
+                <div class="day">16</div>
+                <div class="day">17</div>
+                <div class="day">18</div>
+                <div class="day">19</div>
+                <div class="day">20</div>
+                <div class="day">21</div>
+                <div class="day">22</div>
+
+                <div class="day">23</div>
+                <div class="day">24</div>
+                <div class="day">25</div>
+                <div class="day">26</div>
+                <div class="day">27</div>
+                <div class="day">28</div>
+                <div class="day">29</div>
+
+                <div class="day">30</div>
+                <div class="day">31</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/dashboard/" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>Accueil</span>
+        </a>
+        <a href="/student/inscriptions/" class="nav-item">
+            <span class="nav-icon">📚</span>
+            <span>Formations</span>
+        </a>
+        <a href="/student/payments/" class="nav-item">
+            <span class="nav-icon">💳</span>
+            <span>Paiements</span>
+        </a>
+        <a href="#" class="nav-item active">
+            <span class="nav-icon">📅</span>
+            <span>Planning</span>
+        </a>
+    </nav>
+
+    <script>
+        function switchView(view) {
+            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            console.log('Switched to view:', view);
+        }
+
+        function previousDay() {
+            console.log('Previous day clicked');
+        }
+
+        function nextDay() {
+            console.log('Next day clicked');
+        }
+
+        function goToday() {
+            document.getElementById('currentDate').textContent = 'Aujourd\'hui - Lundi 9 Déc 2024';
+        }
+    </script>
+</body>
+</html>

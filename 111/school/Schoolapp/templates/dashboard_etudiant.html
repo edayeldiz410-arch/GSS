@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GénieSchool - Dashboard Étudiant</title>
+    {% load static %}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f5f5f7;
+            color: #333;
+        }
+
+        body {
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 16px;
+        }
+
+        /* Welcome Card */
+        .welcome-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 24px;
+            border-left: 4px solid #667eea;
+        }
+
+        .welcome-card h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .welcome-card p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Quick Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #333;
+            padding: 0 16px;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            padding: 0 16px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-icon {
+            font-size: 20px;
+        }
+
+        .card-body {
+            padding: 16px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .card-description {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .card-meta {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 12px;
+        }
+
+        .card-progress {
+            background: #e0e0e0;
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .card-action {
+            display: inline-block;
+            background: #f0f0f0;
+            color: #667eea;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .card-action:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+            z-index: 999;
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 12px;
+            color: #999;
+            text-decoration: none;
+            font-size: 12px;
+            transition: color 0.3s ease;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .empty-state-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #666;
+        }
+
+        .empty-state-desc {
+            font-size: 13px;
+            color: #999;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .section-title {
+                padding: 0;
+                padding-left: 0;
+            }
+
+            .cards-grid {
+                padding: 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .welcome-card {
+                padding: 16px;
+            }
+
+            .welcome-card h2 {
+                font-size: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            .stat-card {
+                padding: 16px;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+
+            .section-title {
+                font-size: 16px;
+            }
+
+            .card-header {
+                font-size: 13px;
+            }
+
+            .card-title {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>GénieSchool</h1>
+        <div class="header-right">
+            <a href="/student/profile/edit/" class="logout-btn" style="background: rgba(255, 255, 255, 0.3); margin-right: 8px;">👤 Profil</a>
+            <a href="/logout/" class="logout-btn">Déconnexion</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Welcome Card -->
+        <div class="welcome-card">
+            <h2>Bienvenue, {{ user.prenom }}! 👋</h2>
+            <p>Voici un aperçu de votre progression académique et financière</p>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📚</div>
+                <div class="stat-value">{{ total_formations }}</div>
+                <div class="stat-label">Formations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">€</div>
+                <div class="stat-value">{{ total_paye|floatformat:0 }}</div>
+                <div class="stat-label">Payé</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-value">{{ total_reste|floatformat:0 }}</div>
+                <div class="stat-label">À Payer</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-value">{% now "j" %}</div>
+                <div class="stat-label">Aujourd'hui</div>
+            </div>
+        </div>
+
+        <!-- Inscriptions Section -->
+        <div class="section">
+            <div class="section-title">Mes Formations</div>
+            <div class="cards-grid">
+                {% if inscriptions %}
+                    {% for inscription in inscriptions %}
+                    <div class="card">
+                        <div class="card-header">
+                            <span>{{ inscription.formation.nom }}</span>
+                            <span class="card-icon">📚</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-title">{{ inscription.formation.nom }}</div>
+                            <div class="card-meta">Statut: {{ inscription.statut|upper }} • Groupe: {{ inscription.formation.groupe|default:"N/A" }}</div>
+                            <div class="card-progress">
+                                <div class="progress-bar" style="width: {{ inscription.progress|default:0 }}px; width: {{ inscription.progress|default:0 }}%;"></div>
+                            </div>
+                            <div style="font-size: 12px; color: #999; margin-bottom: 12px;">Progression: {{ inscription.progress|default:0 }}%</div>
+                            <a href="/student/inscriptions/" class="card-action">Voir détails →</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📚</div>
+                        <div class="empty-state-title">Aucune formation</div>
+                        <div class="empty-state-desc">Vous n'êtes pas inscrit à des formations</div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Paiements Section -->
+        <div class="section">
+            <div class="section-title">État Financier</div>
+            <div class="cards-grid">
+                {% if paiements %}
+                    {% for paiement in paiements|slice:":3" %}
+                    <div class="card">
+                        <div class="card-header">
+                            <span>{{ paiement.reference|default:"Paiement" }}</span>
+                            <span class="card-icon">{% if paiement.statut == "payé" %}✓{% elif paiement.statut == "en retard" %}🔴{% else %}⏳{% endif %}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-title">
+                                {% if paiement.statut == "payé" %}
+                                    <span style="color: #4caf50;">{{ paiement.statut|upper }}</span>
+                                {% elif paiement.statut == "en retard" %}
+                                    <span style="color: #f44336;">{{ paiement.statut|upper }}</span>
+                                {% else %}
+                                    <span style="color: #ff9800;">{{ paiement.statut|upper }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="card-meta">{{ paiement.montant|floatformat:0 }} FCFA</div>
+                            {% if paiement.statut != "payé" %}
+                            <div class="card-progress">
+                                <div class="progress-bar" style="width: 40%; background: #ff9800;"></div>
+                            </div>
+                            <div style="font-size: 12px; color: #999; margin-bottom: 12px;">Progression: 40% payé</div>
+                            {% endif %}
+                            <a href="/student/payments/" class="card-action">Voir détails →</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💳</div>
+                        <div class="empty-state-title">Aucun paiement</div>
+                        <div class="empty-state-desc">Vous n'avez pas de paiements enregistrés</div>
+                    </div>
+                {% endif %}
+                        <div class="card-title" style="color: #f44336;">Non payé</div>
+                        <div class="card-meta">Design UI/UX • 450 000 FCFA</div>
+                        <div style="font-size: 12px; color: #999; margin-bottom: 12px;">Échéance: 30 Dec 2024</div>
+                        <a href="#" class="card-action">Payer →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emploi du Temps Section -->
+        <div class="section">
+            <div class="section-title">Prochain Planning</div>
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <span>Lundi 10 Déc</span>
+                        <span class="card-icon">📅</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-title">Cours Python</div>
+                        <div class="card-meta">09:00 - 12:00 • Salle 101</div>
+                        <div style="font-size: 12px; color: #667eea; margin-bottom: 12px;">Avec M. Kouadio</div>
+                        <a href="#" class="card-action">Plus de détails →</a>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span>Mardi 11 Déc</span>
+                        <span class="card-icon">📅</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-title">Projet Web</div>
+                        <div class="card-meta">14:00 - 16:00 • Salle 202</div>
+                        <div style="font-size: 12px; color: #667eea; margin-bottom: 12px;">Avec Mme Diane</div>
+                        <a href="#" class="card-action">Plus de détails →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/dashboard/" class="nav-item active">
+            <span class="nav-icon">🏠</span>
+            <span>Accueil</span>
+        </a>
+        <a href="/student/inscriptions/" class="nav-item">
+            <span class="nav-icon">📚</span>
+            <span>Formations</span>
+        </a>
+        <a href="/student/payments/" class="nav-item">
+            <span class="nav-icon">💳</span>
+            <span>Paiements</span>
+        </a>
+        <a href="/student/profile/edit/" class="nav-item">
+            <span class="nav-icon">👤</span>
+            <span>Profil</span>
+        </a>
+    </nav>
+
+    <script>
+        // Handle bottom nav clicks
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

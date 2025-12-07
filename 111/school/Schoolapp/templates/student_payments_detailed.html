@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GénieSchool - Mes Paiements</title>
+    {% load static %}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+        }
+
+        body {
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .header-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 16px;
+        }
+
+        /* Page Title */
+        .page-title {
+            margin-bottom: 24px;
+        }
+
+        .page-title h2 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .page-title p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            border-top: 4px solid #667eea;
+        }
+
+        .summary-label {
+            color: #999;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .summary-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .summary-sub {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        /* Status Legend */
+        .status-legend {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .legend-badge {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 10px;
+            color: white;
+        }
+
+        .badge-payé {
+            background: #4caf50;
+        }
+
+        .badge-pending {
+            background: #ff9800;
+        }
+
+        .badge-late {
+            background: #f44336;
+        }
+
+        /* Payments List */
+        .payments-container {
+            display: grid;
+            gap: 16px;
+        }
+
+        .payment-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .payment-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .payment-header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 16px;
+            padding: 20px;
+            border-bottom: 1px solid #f0f0f0;
+            align-items: start;
+        }
+
+        .payment-info {
+            display: grid;
+            gap: 8px;
+        }
+
+        .payment-ref {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .payment-formation {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .payment-date {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .payment-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .badge-payé-status {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .badge-pending-status {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .badge-late-status {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .payment-body {
+            padding: 20px;
+        }
+
+        .payment-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .detail-item {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .detail-label {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .payment-methods {
+            background: #f0f7ff;
+            border: 1px solid #b3d9ff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 12px;
+            color: #1976d2;
+        }
+
+        .payment-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .btn-receipt {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-receipt:hover {
+            background: #764ba2;
+        }
+
+        .btn-download {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+
+        .btn-download:hover {
+            background: #e0e0e0;
+        }
+
+        /* Progress Section */
+        .payment-progress {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .progress-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .progress-bar {
+            background: #e0e0e0;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #666;
+            text-align: right;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 12px;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .empty-text {
+            color: #999;
+            margin-bottom: 20px;
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+            z-index: 999;
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 12px;
+            color: #999;
+            text-decoration: none;
+            font-size: 12px;
+            transition: color 0.3s ease;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .payment-header {
+                grid-template-columns: 1fr;
+            }
+
+            .payment-details {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .page-title h2 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>GénieSchool</h1>
+        <div class="header-right">
+            <a href="/student/profile/edit/" class="header-btn">👤 Profil</a>
+            <a href="/logout/" class="header-btn">Déconnexion</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Page Title -->
+        <div class="page-title">
+            <h2>État Financier</h2>
+            <p>Suivi détaillé de vos paiements et solde</p>
+        </div>
+
+        <!-- Summary Cards -->
+        {% if total_montant %}
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-label">Montant Total</div>
+                <div class="summary-value">{{ total_montant|floatformat:0 }}</div>
+                <div class="summary-sub">FCFA à payer</div>
+            </div>
+
+            <div class="summary-card" style="border-top-color: #4caf50;">
+                <div class="summary-label">Montant Payé</div>
+                <div class="summary-value" style="color: #4caf50;">{{ total_paye|floatformat:0 }}</div>
+                <div class="summary-sub">{{ paiement_percent|default:"0" }}% réglé</div>
+            </div>
+
+            <div class="summary-card" style="border-top-color: #ff9800;">
+                <div class="summary-label">Solde Restant</div>
+                <div class="summary-value" style="color: #ff9800;">{{ total_reste|floatformat:0 }}</div>
+                <div class="summary-sub">À payer</div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div style="background: white; padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+            <div style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #333;">
+                Progression de Paiement
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ paiement_percent|default:'0' }}%;"></div>
+            </div>
+            <div style="font-size: 12px; color: #666; text-align: right; margin-top: 8px;">
+                {{ paiement_percent|default:"0" }}% payé
+            </div>
+        </div>
+
+        <!-- Status Legend -->
+        <div class="status-legend">
+            <div class="legend-item">
+                <div class="legend-badge badge-payé">✓</div>
+                <span>Payé</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-badge badge-pending">⏳</div>
+                <span>En Attente</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-badge badge-late">!</div>
+                <span>En Retard</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Payments List -->
+        {% if paiements %}
+            <div class="payments-container">
+                {% for paiement in paiements %}
+                <div class="payment-card">
+                    <div class="payment-header">
+                        <div class="payment-info">
+                            <div class="payment-ref">
+                                Paiement #{{ paiement.reference|default:paiement.id }}
+                            </div>
+                            <div class="payment-formation">
+                                {% if paiement.inscription.formation %}
+                                    {{ paiement.inscription.formation.nom }}
+                                {% elif paiement.formation %}
+                                    {{ paiement.formation.nom }}
+                                {% else %}
+                                    Formation
+                                {% endif %}
+                            </div>
+                            <div class="payment-date">
+                                {{ paiement.date_paiement|date:"d/m/Y à H:i" }}
+                            </div>
+                        </div>
+                        <div class="payment-badge {% if paiement.statut == 'payé' %}badge-payé-status{% elif paiement.statut|lower in 'en retard' %}badge-late-status{% else %}badge-pending-status{% endif %}">
+                            {% if paiement.statut == 'payé' %}
+                                ✓ PAYÉ
+                            {% elif paiement.statut|lower in 'en retard' %}
+                                ! RETARD
+                            {% else %}
+                                ⏳ {{ paiement.statut|upper }}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="payment-body">
+                        <!-- Payment Details -->
+                        <div class="payment-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Montant</div>
+                                <div class="detail-value">{{ paiement.montant|floatformat:0 }} FCFA</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Mode</div>
+                                <div class="detail-value">{{ paiement.mode_paiement|default:"Non spécifié" }}</div>
+                            </div>
+                            {% if paiement.numero_cheque %}
+                            <div class="detail-item">
+                                <div class="detail-label">N° Chèque</div>
+                                <div class="detail-value">{{ paiement.numero_cheque }}</div>
+                            </div>
+                            {% endif %}
+                            {% if paiement.balance_after %}
+                            <div class="detail-item">
+                                <div class="detail-label">Solde Après</div>
+                                <div class="detail-value">{{ paiement.balance_after|floatformat:0 }} FCFA</div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {% if paiement.remarques %}
+                        <div class="payment-methods">
+                            <strong>Notes:</strong> {{ paiement.remarques }}
+                        </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="payment-actions">
+                            <a href="/paiements/{{ paiement.id }}/receipt/" class="action-btn btn-receipt">
+                                📄 Reçu
+                            </a>
+                            <a href="/paiements/{{ paiement.id }}/receipt/pdf/" class="action-btn btn-download">
+                                📥 PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">💳</div>
+                <div class="empty-title">Aucun Paiement</div>
+                <div class="empty-text">Vous n'avez pas de paiements enregistrés</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/dashboard/" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>Accueil</span>
+        </a>
+        <a href="/student/inscriptions/" class="nav-item">
+            <span class="nav-icon">📚</span>
+            <span>Formations</span>
+        </a>
+        <a href="/student/payments/" class="nav-item active">
+            <span class="nav-icon">💳</span>
+            <span>Paiements</span>
+        </a>
+        <a href="/student/profile/edit/" class="nav-item">
+            <span class="nav-icon">👤</span>
+            <span>Profil</span>
+        </a>
+    </nav>
+</body>
+</html>

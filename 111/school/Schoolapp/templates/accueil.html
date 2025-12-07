@@ -1,0 +1,569 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GénieSchool — Tableau de Bord</title>
+  <style>
+    /* --------------------
+       Reset + base
+    -------------------- */
+
+
+
+    reset bas ellipse
+      
+
+    
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      /* Light theme */
+      --bg: #eef2f3;
+      --panel: #ffffff;
+      --panel-2: #f6f8f9;
+      --text: #0b1220;
+      --muted: #6b7280;
+      --muted-2: #9ca3af;
+      --border: rgba(2, 6, 23, .08);
+      --shadow: 0 10px 30px rgba(2, 6, 23, .10);
+      --radius: 16px;
+      --primary: #22c55e;
+      --primary-600: #16a34a;
+      --warning: #facc15;
+      --info: #60a5fa;
+      --purple: #8b5cf6;
+      --card-gap: 18px;
+      --sidebar: #ffffff;
+      --sidebar-border: rgba(2, 6, 23, .08);
+      --sidebar-active: #e8faf0;
+      --sidebar-icon: #0b1220;
+      --chip-bg: #ecfdf5;
+      --chip-text: #065f46;
+      --success: #16a34a;
+      --danger: #ef4444;
+    }
+    [data-theme="dark"]{
+      --bg: #0f1721;
+      --panel: #141c27;
+      --panel-2: #0f1721;
+      --text: #e5e7eb;
+      --muted: #a7b0be;
+      --muted-2: #8b97a8;
+      --border: rgba(255,255,255,.06);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --primary: #22c55e;
+      --primary-600: #22c55e;
+      --warning: #eab308;
+      --info: #60a5fa;
+      --purple: #a78bfa;
+      --card-gap: 18px;
+      --sidebar: #111827;
+      --sidebar-border: rgba(255,255,255,.06);
+      --sidebar-active: #0b2b18;
+      --sidebar-icon: #e5e7eb;
+      --chip-bg: #062e18;
+      --chip-text: #86efac;
+      --success: #22c55e;
+      --danger: #f87171;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.4;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100dvh;
+      gap: 0;
+    }
+    /* --------------------
+       Sidebar
+    -------------------- */
+    .sidebar {
+      background: var(--sidebar);
+      border-right: 1px solid var(--sidebar-border);
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(34,197,94,.15), transparent);
+    }
+    .brand-logo {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: #22c55e; color: white; display: grid; place-items: center;
+      font-weight: 800;
+    }
+    .brand h1 { font-size: 16px; margin: 0; }
+    .brand .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .hamburger {
+      display: none;
+      background: transparent;
+      border: 0;
+      font-size: 22px;
+      margin-left: auto;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+    .nav a {
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      font-weight: 600;
+    }
+    .nav a .icon {
+      width: 18px; height: 18px;
+      stroke: var(--sidebar-icon);
+    }
+    .nav a.active, .nav a:hover {
+      background: var(--sidebar-active);
+      border-color: var(--border);
+    }
+  .submenu { display: none; }
+  .submenu.open { display: block; }
+    .sidebar-footer {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      color: var(--muted);
+      border: 1px dashed var(--sidebar-border);
+    }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: #39414d; display: grid; place-items: center; color: #fff; font-weight: 700; }
+
+    /* --------------------
+       Main
+    -------------------- */
+    .main {
+      padding: 22px 24px 32px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    h2.title {
+      margin: 0;
+      font-size: 36px;
+      letter-spacing: .2px;
+    }
+    .statline {
+      display: flex; gap: 28px; flex-wrap: wrap;
+      font-weight: 800;
+    }
+    .statline .stat {
+      display: grid;
+    }
+    .statline .stat .value {
+      font-size: 28px;
+      color: var(--primary);
+    }
+    .theme-toggle {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .section { margin-top: 22px; }
+    .section h3 { margin: 12px 2px 14px; color: var(--muted); font-size: 18px; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: var(--card-gap);
+    }
+    .card {
+      background: var(--panel);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      grid-column: span 3;
+      display: grid;
+      align-content: start;
+      gap: 12px;
+      min-height: 140px;
+    }
+    .card.header {
+      grid-column: span 12;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      padding: 0;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+    .card .badge {
+      width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+      font-weight: 800;
+    }
+    .badge.blue { background: rgba(96,165,250,.15); color: #2563eb; }
+    .badge.green { background: rgba(34,197,94,.15); color: #16a34a; }
+    .badge.amber { background: rgba(234,179,8,.20); color: #b45309; }
+    .badge.purple { background: rgba(168,85,247,.15); color: #7c3aed; }
+
+    .muted { color: var(--muted); font-size: 14px; }
+    .meta { display: flex; gap: 14px; margin-top: 6px; font-weight: 700; }
+    .meta .kpi { display: grid; gap: 2px; }
+    .kpi .label { color: var(--muted-2); font-size: 12px; font-weight: 600; }
+    .kpi .val { font-size: 18px; }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: var(--chip-bg);
+      color: var(--chip-text);
+      font-weight: 800; font-size: 12px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1080px){
+      .card { grid-column: span 6; }
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: fixed;
+        transform: translateX(-100%);
+        transition: transform .25s ease;
+        z-index: 20;
+        width: 260px;
+        height: 100vh;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .main { padding-top: 76px; }
+      .topbar { position: fixed; left: 0; right: 0; top: 0; z-index: 10; background: var(--panel); padding: 10px 16px; border-bottom: 1px solid var(--border); }
+      .hamburger { display: inline-grid; }
+      .topbar h2.title { font-size: 24px; }
+      body { overflow-x: hidden; }
+    }
+    @media (max-width: 640px){
+      .card { grid-column: span 12; }
+      .statline { gap: 14px; }
+    }
+
+    /* Tiny helpers */
+    .row { display: flex; align-items: center; gap: 12px; }
+    .row.between { justify-content: space-between; }
+
+    /* Simple SVG icon baseline */
+    svg { display: block; }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-logo">GS</div>
+        <div>
+          <h1>GénieSchool</h1>
+          <div class="sub">Excellence en Formation</div>
+        </div>
+        <button class="hamburger" id="closeSidebar" title="Fermer">✕</button>
+      </div>
+      <nav class="nav" id="menu">
+        <a class="active" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 12L12 3l9 9" stroke-width="2" stroke="currentColor"/><path d="M9 21V9h6v12" stroke-width="2" stroke="currentColor"/></svg> Tableau de bord</a>
+        <a href="#"><svg class="icon" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="6" height="6" stroke="currentColor" stroke-width="2"/><rect x="14" y="4" width="6" height="6" stroke="currentColor" stroke-width="2"/><rect x="4" y="14" width="6" height="6" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="6" height="6" stroke="currentColor" stroke-width="2"/></svg> Formations</a>
+        <div class="group">
+          <div class="group-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:12px;cursor:pointer;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.5 0-8 2.2-8 5v2h16v-2c0-2.8-3.5-5-8-5Z" stroke="currentColor" stroke-width="2"/></svg>
+              <span style="font-weight:600;">Étudiants</span>
+            </div>
+            <span style="color:var(--muted);">▾</span>
+          </div>
+          <div class="submenu" style="margin-left:12px;margin-top:6px;display:flex;flex-direction:column;gap:6px;">
+            <a href="/etudiants/" style="text-decoration:none;padding:8px 12px;border-radius:10px;font-weight:600;display:flex;align-items:center;gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5z"></path><path d="M12 14c-4.5 0-8 2.2-8 5v2h16v-2c0-2.8-3.5-5-8-5z"></path></svg>
+              <span>Liste des étudiants</span>
+            </a>
+            <a href="/inscriptions/" style="text-decoration:none;padding:8px 12px;border-radius:10px;font-weight:600;display:flex;align-items:center;gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3v4M8 3v4M4 11h16M5 21h14a1 1 0 0 0 1-1V7H4v13a1 1 0 0 0 1 1Z"></path></svg>
+              <span>Liste des inscriptions</span>
+            </a>
+          </div>
+        </div>
+        <a href="#"><svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M16 3v4M8 3v4M4 11h16M5 21h14a1 1 0 0 0 1-1V7H4v13a1 1 0 0 0 1 1Z" stroke="currentColor" stroke-width="2"/></svg> Planning</a>
+        <a href="#"><svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="2"/><path d="M8 10h8M8 14h8" stroke="currentColor" stroke-width="2"/></svg> Examens</a>
+        <div class="group">
+          <div class="group-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:12px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="2"/><path d="M8 10h8M8 14h8" stroke="currentColor" stroke-width="2"/></svg>
+              <span style="font-weight:600;">Finances</span>
+            </div>
+            <span style="color:var(--muted);">▾</span>
+          </div>
+          <div class="submenu" style="margin-left:12px;margin-top:6px;display:flex;flex-direction:column;gap:6px;">
+            <a href="#" style="text-decoration:none;padding:8px 12px;border-radius:10px;font-weight:600;display:flex;align-items:center;gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16v12H4z"></path><path d="M8 10h8M8 14h8"></path></svg>
+              <span>Payments des étudiants</span>
+            </a>
+            <a href="#" style="text-decoration:none;padding:8px 12px;border-radius:10px;font-weight:600;display:flex;align-items:center;gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/></svg>
+              <span>Règlements des enseignants</span>
+            </a>
+            <a href="#" style="text-decoration:none;padding:8px 12px;border-radius:10px;font-weight:600;display:flex;align-items:center;gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18v10H3z"/></svg>
+              <span>Règlements des Fournisseurs</span>
+            </a>
+            <a href="#" style="text-decoration:none;padding:8px 12px;border-radius:10px;font-weight:600;display:flex;align-items:center;gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/></svg>
+              <span>Trésor</span>
+            </a>
+          </div>
+        </div>
+        <a href="#"><svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm7-9-3 3M5 6l3 3" stroke="currentColor" stroke-width="2"/></svg> Paramètres</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="avatar">H</div>
+        <div>
+          <div style="font-weight:700;">HAMZA</div>
+          <div style="font-size:12px;">Administrateur</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <div class="topbar">
+        <button class="hamburger" id="openSidebar" title="Menu">☰</button>
+        <h2 class="title">Tableau de Bord</h2>
+        <div class="statline">
+          <div class="stat">
+            <span class="value" data-count="1234">1,234</span>
+            <span class="muted">Étudiants actifs</span>
+          </div>
+          <div class="stat">
+            <span class="value" data-count="42">42</span>
+            <span class="muted">Formations</span>
+          </div>
+          <div class="stat">
+            <span class="value" data-count="156">156</span>
+            <span class="muted">Formateurs</span>
+          </div>
+        </div>
+        <button class="theme-toggle" id="themeToggle" title="Mode clair/sombre"><span aria-hidden>🌙</span> Thème</button>
+      </div>
+
+      <section class="section">
+        <h3>Gestion des Formations</h3>
+        <div class="cards">
+          <article class="card">
+            <div class="row between">
+              <div class="row"><div class="badge blue">📘</div>
+                <div>
+                  <div style="font-weight:800;">Catalogue des Cours</div>
+                  <div class="muted">Gérez et organisez tous vos programmes de formation</div>
+                </div>
+              </div>
+            </div>
+            <div class="meta">
+              <div class="kpi"><div class="label">Formations</div><div class="val">42</div></div>
+              <div class="kpi"><div class="label">Nouvelles</div><div class="val" style="color:var(--success);">12</div></div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="row"><div class="badge green">👥</div>
+              <div>
+                <div style="font-weight:800;">Gestion des Étudiants</div>
+                <div class="muted">Inscriptions, suivi et performance des apprenants</div>
+              </div>
+            </div>
+            <div class="meta">
+              <div class="kpi"><div class="label">Inscrits</div><div class="val">1,234</div></div>
+              <div class="kpi"><div class="label">Présence</div><div class="val" style="color:var(--success);">89%</div></div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="row"><div class="badge amber">🧑‍🏫</div>
+              <div>
+                <div style="font-weight:800;">Gestion des Enseignants</div>
+                <div class="muted">Formateurs, emplois du temps et affectations</div>
+              </div>
+            </div>
+            <div class="meta">
+              <div class="kpi"><div class="label">Formateurs</div><div class="val">156</div></div>
+              <div class="kpi"><div class="label">Disponibilité</div><div class="val" style="color:var(--success);">98%</div></div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="row"><div class="badge purple">📝</div>
+              <div>
+                <div style="font-weight:800;">Évaluations & Examens</div>
+                <div class="muted">Créez et gérez les tests et certifications</div>
+              </div>
+            </div>
+            <div class="meta">
+              <div class="kpi"><div class="label">Tests actifs</div><div class="val">156</div></div>
+              <div class="kpi"><div class="label">Réussite</div><div class="val" style="color:var(--success);">92%</div></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3>Administration</h3>
+        <div class="cards">
+          <article class="card">
+            <div class="row"><div class="badge green">📅</div>
+              <div>
+                <div style="font-weight:800;">Planning & Salles</div>
+                <div class="muted">Gérez les emplois du temps et réservations</div>
+              </div>
+            </div>
+            <div class="meta">
+              <div class="kpi"><div class="label">Salles</div><div class="val">24</div></div>
+              <div class="kpi"><div class="label">Occupation</div><div class="val" style="color:var(--success);">87%</div></div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="row"><div class="badge blue">💶</div>
+              <div>
+                <div style="font-weight:800;">Paiements Étudiants</div>
+                <div class="muted">Gestion des frais de scolarité et suivi des paiements</div>
+              </div>
+            </div>
+            <div class="meta">
+              <div class="kpi"><div class="label">Collectés</div><div class="val">€125k</div></div>
+              <div class="kpi"><div class="label">Payés</div><div class="val" style="color:var(--success);">94%</div></div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="row"><div class="badge purple">📊</div>
+              <div>
+                <div style="font-weight:800;">Rapports & Analytics</div>
+                <div class="muted">Tableau de bord et indicateurs de performance</div>
+              </div>
+            </div>
+            <div class="meta">
+              <div class="kpi"><div class="label">Rapports</div><div class="val">48</div></div>
+              <div class="kpi"><div class="label">Données</div><div class="val"><span class="pill">Live</span></div></div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // --------------------
+    // Theme handling
+    // --------------------
+    const root = document.documentElement;
+    const themeToggle = document.getElementById('themeToggle');
+    const stored = localStorage.getItem('gs-theme');
+    if(stored){ document.documentElement.setAttribute('data-theme', stored); }
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', current);
+      localStorage.setItem('gs-theme', current);
+    });
+
+    // --------------------
+    // Mobile sidebar
+    // --------------------
+    const sidebar = document.getElementById('sidebar');
+    document.getElementById('openSidebar').addEventListener('click', ()=> sidebar.classList.add('open'));
+    document.getElementById('closeSidebar').addEventListener('click', ()=> sidebar.classList.remove('open'));
+    // Close sidebar when clicking a link (mobile)
+    document.querySelectorAll('.nav a').forEach(a=>a.addEventListener('click', ()=> sidebar.classList.remove('open')));
+
+    // --------------------
+    // Active menu highlight
+    // --------------------
+    document.querySelectorAll('.nav a').forEach(a=>{
+      a.addEventListener('click', (e)=>{
+        document.querySelectorAll('.nav a').forEach(x=>x.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+      });
+    });
+
+    // --------------------
+    // Tiny count animation
+    // --------------------
+    function animateCount(el){
+      const target = Number(String(el.dataset.count).replace(/[^0-9]/g,''));
+      const start = 0;
+      const dur = 900;
+      const t0 = performance.now();
+      function step(t){
+        const p = Math.min(1, (t - t0) / dur);
+        const v = Math.floor(start + (target - start) * (p * (2 - p))); // easeOutQuad
+        el.textContent = v.toLocaleString('fr-FR');
+        if(p < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+    document.querySelectorAll('[data-count]').forEach(animateCount);
+    // --------------------
+    // Sidebar group toggles (Étudiants submenu)
+    // --------------------
+    document.querySelectorAll('.group-header').forEach(h=>{
+      h.addEventListener('click', ()=>{
+        const ul = h.nextElementSibling;
+        if(!ul) return;
+        ul.classList.toggle('open');
+      });
+    });
+    // Auto-open if current path matches one of the submenu targets
+    try{
+      const p = window.location.pathname || '/';
+  if(p.startsWith('/etudiants') || p.startsWith('/inscriptions') || p.startsWith('/finances')){
+        document.querySelectorAll('.submenu').forEach(s=>s.classList.add('open'));
+      }
+    }catch(e){/* ignore in non-browser contexts */}
+  </script>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  
+</body>
+</html>

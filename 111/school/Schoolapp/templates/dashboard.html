@@ -1,0 +1,998 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Tableau de Bord - GénieSchool{% endblock %}
+{% block content %}
+{% block content_header %}
+<header class="flex justify-between items-center mb-8">
+<h1 class="text-4xl md:text-5xl font-bold header-text">Tableau de Bord</h1>
+<!-- Decorative 3D header area (fills the space between title and stats) -->
+<div class="header-deco" aria-hidden="true">
+      <svg width="100%" height="56" viewBox="0 0 800 56" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                  <filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="18" result="blur"/></filter>
+            </defs>
+            <!-- soft layered blobs for subtle 3D depth -->
+            <g filter="url(#b)">
+                  <ellipse cx="220" cy="28" rx="140" ry="22" fill="#c7f9e6" opacity="0.35"/>
+                  <ellipse cx="380" cy="20" rx="120" ry="20" fill="#e9d5ff" opacity="0.30"/>
+                  <ellipse cx="540" cy="30" rx="160" ry="24" fill="#dbeafe" opacity="0.28"/>
+            </g>
+            <!-- faint grid/lines for a subtle 3D plane -->
+            <g opacity="0.06" stroke="#000" stroke-width="0.6">
+                  <path d="M0 50 L800 10"/>
+                  <path d="M0 40 L800 0"/>
+            </g>
+      </svg>
+</div>
+<div class="flex space-x-6 header-stats" role="list">
+      <div class="header-stat p-2 text-center" role="listitem">
+            <p class="text-3xl md:text-4xl font-extrabold stat-num stat-num-blue" data-value="{{ nb_etudiants|default:0 }}">0</p>
+            <p class="text-xs stat-label">Étudiants</p>
+      </div>
+      <div class="header-stat p-2 text-center" role="listitem">
+            <p class="text-3xl md:text-4xl font-extrabold stat-num stat-num-green" data-value="{{ nb_formations|default:0 }}">0</p>
+            <p class="text-xs stat-label">Formations</p>
+      </div>
+      <div class="header-stat p-2 text-center" role="listitem">
+            <p class="text-3xl md:text-4xl font-extrabold stat-num stat-num-purple" data-value="{{ nb_utilisateurs|default:0 }}">0</p>
+            <p class="text-xs stat-label">Utilisateurs</p>
+      </div>
+</div>
+</header>
+{% endblock %}
+<section>
+<h2 class="text-xl font-semibold section-title mb-4">Gestion des Formations</h2>
+<div class="w-full mx-auto px-0 max-w-full">
+<style>
+/* Make top cards stretch to the same height and ensure bar fills align */
+.top-cards-grid { grid-auto-rows: 1fr; }
+.top-cards-grid .card { height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
+.form-bar, .inv-bar, .lvl-fill { transition: width .8s ease; height: .75rem; border-radius: 9999px; display: block; }
+.lvl-fill { height: 100%; }
+/* Slightly larger text inside top cards to occupy more top space */
+.top-cards-grid .card { padding-top: 1.5rem; padding-bottom: 1.5rem; padding-left: 1rem; padding-right: 1rem; }
+.header-deco { flex:1 1 auto; margin:0 8px 0 0; height:56px; display:block; position:relative; max-width:420px; }
+.header-deco svg { width:100%; height:100%; display:block; }
+.header-deco { pointer-events:none; opacity:0.95; }
+/* Small variant for occ-track when used in compact cards (payments) */
+.occ-track.small { height:10px; }
+.top-cards-grid .card h3 { font-size: 1.125rem; }
+.top-cards-grid .card .text-2xl { font-size: 1.875rem; }
+.top-cards-grid .card .material-icons { font-size: 2.25rem; }
+/* Blur financial cards for Secretaire role (minimal, non-destructive).
+   Prefer applying the class to numeric elements when we want the surrounding
+   card to remain fully interactive (clickable). */
+.blurred-finance { filter: blur(4px) grayscale(.35); opacity: .55; transition: filter .28s ease, opacity .28s ease; }
+/* Support applying the class directly to number elements (do not block parent pointer events) */
+.netprofit-value.blurred-finance,
+.rev-value.blurred-finance,
+.stat-num.blurred-finance {
+      color: transparent !important;
+      background: none !important;
+      -webkit-background-clip: initial !important;
+      background-clip: initial !important;
+      -webkit-text-fill-color: transparent !important;
+      text-shadow: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+}
+@media (prefers-reduced-motion: reduce){ .blurred-finance { transition: none !important; } }
+/* Strongly hide numeric text inside blurred finance cards while keeping layout intact */
+.blurred-finance .netprofit-value,
+.blurred-finance .netprofit-currency,
+.blurred-finance .rev-value,
+.blurred-finance .rev-currency,
+.blurred-finance .rev-right {
+      /* Make text invisible without collapsing the space they occupy */
+      color: transparent !important;
+      background: none !important;
+      background-image: none !important;
+      -webkit-background-clip: initial !important;
+      background-clip: initial !important;
+      -webkit-text-fill-color: transparent !important;
+      text-shadow: none !important;
+      opacity: 0 !important; /* ensures any gradient/text-fill becomes invisible */
+}
+
+/* Also hide any animated counters or JS-driven numeric text inside the blurred cards */
+.blurred-finance [id$="-value"],
+.blurred-finance [data-total],
+.blurred-finance [data-month],
+.blurred-finance [data-year] {
+      visibility: hidden !important; /* keeps layout but hides generated/animated numbers */
+}
+/* formation list - larger labels */
+.form-row .formation-name { font-size: 1rem; font-weight: 700; color: #111827; }
+.form-row .formation-count { font-size: 0.95rem; color: #374151; }
+/* Group occupation visual and decorative icon */
+.occupation-visual { margin-top: 10px; }
+.occ-track { background: #f1f5f9; height: 14px; border-radius: 9999px; overflow: hidden; }
+.occ-fill { height: 100%; width: 0; background: linear-gradient(90deg, #16a34a, #06b6d4); transition: width 1.0s ease; }
+.occ-meta { display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
+.occ-label { font-size: 0.875rem; color:#475569; }
+.occ-pct { font-weight:700; color:#0f172a; }
+.icon-deco { position: absolute; top:10px; right:12px; width:40px; height:40px; opacity:0.12; pointer-events:none; }
+.card { position: relative; }
+/* Header stat styles */
+.stat-num { font-variant-numeric: tabular-nums; }
+.stat-num-blue { color: #1d4ed8; } /* Tailwind blue-700, matches Garçons */
+.stat-num-green { color: #db2777; } /* Tailwind pink-600, matches Filles */
+.stat-num-purple { color: #15803d; } /* Tailwind green-700, matches Étudiants */
+.stat-label { color: rgba(15,23,42,0.55); margin-top:4px }
+/* enlarged enrolled number style */
+.enlarged-enrolled { font-family: 'Orbitron', 'Segoe UI', Roboto, Arial, sans-serif; color: #0f172a; letter-spacing: -0.5px; }
+
+/* Dark mode overrides for dashboard numbers and progress visuals */
+[data-theme="dark"] .stat-num-blue { color: #93c5fd !important; } /* lighter blue */
+[data-theme="dark"] .stat-num-green { color: #86efac !important; } /* light green */
+[data-theme="dark"] .stat-num-purple { color: #c7b3ff !important; } /* pastel purple */
+[data-theme="dark"] .enlarged-enrolled { color: #e6eef8 !important; }
+[data-theme="dark"] .stat-label { color: #94a3b8 !important; }
+
+[data-theme="dark"] .text-premium-green { color: #86efac !important; }
+[data-theme="dark"] .occ-pct { color: #e6fffa !important; font-weight:700 !important; }
+[data-theme="dark"] .occ-label { color: #cbd5e1 !important; }
+[data-theme="dark"] .occ-track { background: rgba(255,255,255,0.04) !important; }
+[data-theme="dark"] .occ-fill { background: linear-gradient(90deg,#34d399,#06b6d4) !important; box-shadow: none !important; }
+
+[data-theme="dark"] .form-bar { filter: brightness(1.15) !important; }
+[data-theme="dark"] .form-bar[style*="#0f5132"] { background: #083e2a !important; }
+[data-theme="dark"] .form-bar[style*="#16a34a"] { background: #0b8f3a !important; }
+[data-theme="dark"] .form-bar[style*="#84cc16"] { background: #9ae6b4 !important; }
+[data-theme="dark"] .form-bar[style*="#f59e0b"] { background: #fbbf24 !important; }
+[data-theme="dark"] .form-bar[style*="#ef4444"] { background: #fb7185 !important; }
+
+[data-theme="dark"] .lvl-fill { box-shadow: none !important; filter: brightness(1.08) !important; }
+[data-theme="dark"] .level-name, [data-theme="dark"] .level-count { color: #e6eef8 !important; }
+
+[data-theme="dark"] .netprofit-value {
+      /* Ensure numeric value remains readable in dark mode.
+         Gradient text clipping can render as a solid bar in some browsers (eg. Firefox),
+         so use a solid readable color as a reliable fallback. */
+      background: none !important;
+      -webkit-background-clip: initial; background-clip: initial;
+      -webkit-text-fill-color: initial !important;
+      color: #cfeaf0 !important;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.55);
+}
+[data-theme="dark"] .netprofit-currency { color: #e6eef8 !important; }
+
+/* Dark-mode: keep 'Apprenants' card tiles colorful and readable */
+[data-theme="dark"] .card .bg-blue-50 { background: linear-gradient(180deg, rgba(14,165,233,0.07), rgba(14,165,233,0.02)) !important; }
+[data-theme="dark"] .card .bg-pink-50 { background: linear-gradient(180deg, rgba(236,72,153,0.06), rgba(236,72,153,0.02)) !important; }
+[data-theme="dark"] .card .bg-green-50 { background: linear-gradient(180deg, rgba(16,185,129,0.06), rgba(16,185,129,0.02)) !important; }
+[data-theme="dark"] .card .bg-yellow-50 { background: linear-gradient(180deg, rgba(245,158,11,0.06), rgba(245,158,11,0.02)) !important; }
+
+[data-theme="dark"] .card .text-blue-700, [data-theme="dark"] .card .text-blue-600 { color: #bfdbfe !important; }
+[data-theme="dark"] .card .text-pink-600, [data-theme="dark"] .card .text-pink-500 { color: #fbcfe8 !important; }
+[data-theme="dark"] .card .text-green-700, [data-theme="dark"] .card .text-green-600 { color: #bbf7d0 !important; }
+[data-theme="dark"] .card .text-amber-600, [data-theme="dark"] .card .text-amber-500 { color: #fef3c7 !important; }
+
+[data-theme="dark"] .card.p-6.bg-white { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)) !important; border: 1px solid rgba(255,255,255,0.04) !important; }
+[data-theme="dark"] .enlarged-enrolled { color: #e6eef8 !important; }
+[data-theme="dark"] .card .text-gray-500, [data-theme="dark"] .card .text-gray-600 { color: #94a3b8 !important; }
+
+[data-theme="dark"] .card .material-icons { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.45)); }
+</style>
+<style>
+/* Enhanced dark-mode color treatments for specific dashboard cards requested (Apprenants, Nouveaux ce mois-ci) */
+[data-theme="dark"] .card.apprenants-card { background: linear-gradient(180deg, rgba(8,10,18,0.6), rgba(12,14,24,0.48)) !important; border: 1px solid rgba(255,255,255,0.035) !important; }
+[data-theme="dark"] .card.apprenants-card .enlarged-enrolled { color: #7ef9d6 !important; text-shadow: 0 10px 36px rgba(34,197,94,0.08); }
+[data-theme="dark"] .card.apprenants-card .bg-blue-50 { background: linear-gradient(180deg, rgba(6,182,212,0.10), rgba(59,130,246,0.03)) !important; }
+[data-theme="dark"] .card.apprenants-card .bg-pink-50 { background: linear-gradient(180deg, rgba(124,58,237,0.10), rgba(236,72,153,0.03)) !important; }
+[data-theme="dark"] .card.apprenants-card .bg-green-50 { background: linear-gradient(180deg, rgba(34,197,94,0.10), rgba(16,185,129,0.03)) !important; }
+[data-theme="dark"] .card.apprenants-card .bg-yellow-50 { background: linear-gradient(180deg, rgba(99,102,241,0.10), rgba(88,28,135,0.03)) !important; }
+[data-theme="dark"] .card.apprenants-card .text-blue-700 { color: #bfdbfe !important; }
+[data-theme="dark"] .card.apprenants-card .text-pink-600 { color: #ffccf0 !important; }
+[data-theme="dark"] .card.apprenants-card .text-green-700 { color: #bbf7d0 !important; }
+[data-theme="dark"] .card.apprenants-card .text-amber-600 { color: #fee9b5 !important; }
+[data-theme="dark"] .card.apprenants-card .grid > div { transition: transform .22s cubic-bezier(.2,.9,.25,1), box-shadow .22s ease; }
+[data-theme="dark"] .card.apprenants-card .grid > div:hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 18px 44px rgba(6,95,70,0.12); }
+
+[data-theme="dark"] .card.recent-card { background: linear-gradient(180deg, rgba(6,8,15,0.6), rgba(10,12,22,0.5)) !important; border: 1px solid rgba(255,255,255,0.035) !important; }
+[data-theme="dark"] .card.recent-card .recent-item { background: linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02)); border-radius:8px; }
+[data-theme="dark"] .card.recent-card .recent-avatar.initials { background: linear-gradient(135deg,#06b6d4,#34d399); color: #042f2e; box-shadow: 0 8px 20px rgba(3,105,97,0.12); position:relative; }
+[data-theme="dark"] .card.recent-card .recent-name { color: #e6fdf6 !important; }
+[data-theme="dark"] .card.recent-card .recent-sub { color: #9fb6ad !important; }
+[data-theme="dark"] .card.recent-card .recent-item:hover .recent-avatar::after { content: ''; position: absolute; width:72px; height:72px; border-radius:9999px; left: -8px; top: -8px; pointer-events:none; box-shadow: 0 0 30px rgba(99,102,241,0.12), 0 0 8px rgba(16,185,129,0.06); transform: scale(1); transition: all .28s ease; }
+[data-theme="dark"] .scroll-list { background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.006)); border-radius: 10px; padding:6px; }
+[data-theme="dark"] .card.recent-card .text-gray-500, [data-theme="dark"] .card.apprenants-card .text-gray-500 { color: #9fb6ad !important; }
+/* Reports card dark styling */
+[data-theme="dark"] .reports-card h3 { color: #e6eef8 !important; }
+[data-theme="dark"] .reports-card .p-3, [data-theme="dark"] .reports-card .material-icons, [data-theme="dark"] .reports-card .text-2xl, [data-theme="dark"] .reports-card p { color: #cfeaf0 !important; }
+[data-theme="dark"] .reports-card p.text-2xl { font-family: 'Orbitron', 'Segoe UI', Roboto, Arial, monospace !important; }
+
+[data-theme="dark"] .card.apprenants-card .grid > div { background: rgba(255,255,255,0.02) !important; }
+[data-theme="dark"] .card.apprenants-card .grid > div .text-2xl { color:#dffcf0 !important; }
+
+/* Mobile Responsive Styles */
+@media (max-width: 640px) {
+  /* Header adjustments */
+  header.flex { 
+    flex-direction: column !important; 
+    align-items: flex-start !important;
+    gap: 1rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+  
+  .header-text { 
+    font-size: 2rem !important; 
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .header-deco { 
+    display: none !important; 
+  }
+  
+  .header-stats { 
+    width: 100% !important;
+    justify-content: space-between !important;
+    gap: 0.5rem !important;
+  }
+  
+  .header-stat { 
+    flex: 1 !important;
+    padding: 0.75rem !important;
+  }
+  
+  .stat-num { 
+    font-size: 1.5rem !important; 
+  }
+  
+  .stat-label { 
+    font-size: 0.7rem !important; 
+  }
+  
+  /* Grid adjustments */
+  .top-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  /* Card improvements */
+  .card {
+    padding: 1.25rem !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+    animation: cardSlideIn 0.4s ease-out backwards;
+  }
+  
+  @keyframes cardSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Stagger card animations */
+  .top-cards-grid .card:nth-child(1) { animation-delay: 0.1s; }
+  .top-cards-grid .card:nth-child(2) { animation-delay: 0.2s; }
+  .top-cards-grid .card:nth-child(3) { animation-delay: 0.3s; }
+  .top-cards-grid .card:nth-child(4) { animation-delay: 0.4s; }
+  
+  /* Text size adjustments */
+  .card h3 { 
+    font-size: 1.1rem !important; 
+    margin-bottom: 0.75rem !important;
+  }
+  
+  .text-5xl { 
+    font-size: 2.5rem !important; 
+  }
+  
+  .text-3xl { 
+    font-size: 1.75rem !important; 
+  }
+  
+  .text-2xl { 
+    font-size: 1.5rem !important; 
+  }
+  
+  /* Grid inside cards */
+  .card .grid.grid-cols-2 {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+  
+  /* Scroll list adjustments */
+  .scroll-list { 
+    height: 180px !important; 
+  }
+  
+  /* Level bars */
+  .lvl-row { 
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+  
+  .level-name { 
+    font-size: 0.9rem !important; 
+  }
+  
+  /* Revenue card */
+  .rev-card { 
+    max-height: none !important; 
+  }
+  
+  .rev-list-container { 
+    max-height: 300px !important; 
+  }
+  
+  /* Progress bars */
+  .progress-wrap { 
+    height: 12px !important; 
+  }
+  
+  /* Section titles */
+  .section-title { 
+    font-size: 1.25rem !important; 
+    margin-bottom: 1rem !important;
+  }
+  
+  /* Decorative elements */
+  .icon-deco { 
+    display: none !important; 
+  }
+  
+  /* Add colorful gradient backgrounds to cards */
+  .apprenants-card {
+    background: linear-gradient(135deg, rgba(59,130,246,0.05), rgba(99,102,241,0.05)) !important;
+    border-left: 4px solid #3b82f6 !important;
+  }
+  
+  .recent-card {
+    background: linear-gradient(135deg, rgba(16,185,129,0.05), rgba(5,150,105,0.05)) !important;
+    border-left: 4px solid #10b981 !important;
+  }
+  
+  .profit-card {
+    background: linear-gradient(135deg, rgba(245,158,11,0.05), rgba(217,119,6,0.05)) !important;
+    border-left: 4px solid #f59e0b !important;
+  }
+  
+  .rev-card {
+    background: linear-gradient(135deg, rgba(139,92,246,0.05), rgba(124,58,237,0.05)) !important;
+    border-left: 4px solid #8b5cf6 !important;
+  }
+  
+  /* Hover effects for touch */
+  .card:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+</style>
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 top-cards-grid">
+      <!-- Row 1: Students / Formation distribution / New / Certifications -->
+      <div class="card apprenants-card p-6 bg-white shadow-sm border border-gray-100 rounded-lg">
+            <h3 class="text-lg font-semibold mb-2">Aprennants</h3>
+            <p class="text-sm text-gray-600 mb-4">Total:</p>
+            <p class="text-5xl font-extrabold text-gray-900 mb-2 enlarged-enrolled" data-value="{{ total_enrolled }}">{{ total_enrolled }}</p>
+            <!-- four quick stats: Garçons / Filles / Etudiants / Fonctionnaires -->
+            <div class="grid grid-cols-2 gap-3 mb-3" style="width:100%;">
+                  <div class="flex items-center space-x-3 bg-blue-50 p-3 rounded-lg">
+                        <span class="material-icons text-blue-600 text-3xl">person</span>
+                        <div class="text-left">
+                              <p class="text-2xl font-bold text-blue-700">{{ male_count }}</p>
+                              <p class="text-xs text-gray-500">Garçons</p>
+                        </div>
+                  </div>
+                  <div class="flex items-center space-x-3 bg-pink-50 p-3 rounded-lg">
+                        <span class="material-icons text-pink-600 text-3xl">person</span>
+                        <div class="text-left"> 
+                              <p class="text-2xl font-bold text-pink-600">{{ female_count }}</p>
+                              <p class="text-xs text-gray-500">Filles</p>
+                        </div>
+                  </div>
+                  <div class="flex items-center space-x-3 bg-green-50 p-3 rounded-lg">
+                        <span class="material-icons text-green-600 text-3xl">school</span>
+                        <div class="text-left">
+                              <p class="text-2xl font-bold text-green-700">{{ situation_etudiant_count }}</p>
+                              <p class="text-xs text-gray-500">Étudiants</p>
+                        </div>
+                  </div>
+                  <div class="flex items-center space-x-3 bg-yellow-50 p-3 rounded-lg" style="flex:1;">
+                        <span class="material-icons text-amber-600 text-3xl">work</span>
+                        <div class="text-left">
+                              <p class="text-2xl font-bold text-amber-600">{{ fonctionnaire_count }}</p>
+                              <p class="text-xs text-gray-500">Fonctionnaires</p>
+                        </div>
+                  </div>
+            </div>
+            <!-- removed small formation list as requested -->
+      </div>
+
+      <div class="card p-6 bg-white shadow-sm border border-gray-100 rounded-lg">
+            <h3 class="text-lg font-semibold mb-2">Répartition par formation (détail)</h3>
+            <div class="space-y-2">
+                              {% for f in form_distribution|slice:":6" %}
+                                    <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                                          {# Use a more granular green scale: very high -> dark green, high -> green, medium -> yellow/orange, low -> red #}
+                                          {% if f.pct >= 90 %}
+                                                <span class="form-bar" data-pct="{{ f.pct_str }}" style="width:0; background:#0f5132; display:block; height:100%; border-radius:9999px;"></span>
+                                          {% elif f.pct >= 60 %}
+                                                <span class="form-bar" data-pct="{{ f.pct_str }}" style="width:0; background:#16a34a; display:block; height:100%; border-radius:9999px;"></span>
+                                          {% elif f.pct >= 30 %}
+                                                <span class="form-bar" data-pct="{{ f.pct_str }}" style="width:0; background:#84cc16; display:block; height:100%; border-radius:9999px;"></span>
+                                          {% elif f.pct > 0 %}
+                                                <span class="form-bar" data-pct="{{ f.pct_str }}" style="width:0; background:#f59e0b; display:block; height:100%; border-radius:9999px;"></span>
+                                          {% else %}
+                                                <span class="form-bar" data-pct="{{ f.pct_str }}" style="width:0; background:#ef4444; display:block; height:100%; border-radius:9999px;"></span>
+                                          {% endif %}
+                                    </div>
+                                    <div class="flex justify-between form-row"><span class="formation-name">{{ f.nom }}</span><span class="formation-count">{{ f.count }} ({{ f.pct }}%)</span></div>
+                  {% empty %}
+                        <div class="text-gray-500">Aucune donnée</div>
+                  {% endfor %}
+            </div>
+      </div>
+
+      <div class="card recent-card p-6 bg-white shadow-sm border border-gray-100 rounded-lg">
+                  <h3 class="text-lg font-semibold mb-2">Nouveaux ce mois-ci</h3>
+                  <p class="text-2xl font-bold">{{ new_this_month }}</p>
+                  <p class="text-sm text-gray-500 mt-2 mb-3">Étudiants inscrits depuis le début du mois</p>
+                  <!-- Clean recent students auto-scroll (name + ID) -->
+                  <style>
+                  .scroll-list { height: 120px; overflow: hidden; position: relative; }
+                  .scroll-list ul { margin:0; padding:0; list-style:none; }
+                  .scroll-list li { padding: 8px 0; border-bottom: 1px solid #f3f4f6; display:flex; justify-content:space-between; }
+                  .scroll-list ul.animate { animation-name: scrollUp; animation-timing-function: linear; animation-iteration-count: infinite; will-change: transform; }
+                  .scroll-list:hover ul.animate { animation-play-state: paused; }
+                  @keyframes scrollUp { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
+                  </style>
+                  <div class="scroll-list" id="recent-scroll">
+                          <ul id="recent-list">
+                                    <!-- JS will populate recent students here -->
+                          </ul>
+                  </div>
+                  <style>
+                  /* Avatar styles for recent students */
+                  .recent-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #f3f4f6; }
+                  .recent-avatar { width:56px; height:56px; border-radius:9999px; flex:0 0 56px; overflow:hidden; display:inline-flex; align-items:center; justify-content:center; background:#eef2ff; color:#111827; font-weight:700; font-size:18px; }
+                  .recent-avatar img { width:100%; height:100%; object-fit:cover; display:block; }
+                  .recent-meta { flex:1; display:flex; flex-direction:column; }
+                  .recent-name { font-size:14px; font-weight:700; color:#111827; }
+                  .recent-sub { font-size:12px; color:#6b7280; }
+                  /* scrolling: ensure a smooth continuous vertical scroll */
+                  .scroll-list { height: 220px; overflow: hidden; position: relative; }
+                  .scroll-list ul { margin:0; padding:0; list-style:none; }
+                  .scroll-list ul.animate { animation-name: scrollUp; animation-timing-function: linear; animation-iteration-count: infinite; will-change: transform; }
+                  .scroll-list:hover ul.animate { animation-play-state: paused; }
+                  @keyframes scrollUp { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
+                  </style>
+                  <script>
+                  (function(){
+                        const url = '{% url "api_dashboard_stats" %}';
+                        function initials(name, surname){
+                              const n = (name||'').trim();
+                              const p = (surname||'').trim();
+                              const a = n.charAt(0) || '';
+                              const b = p.charAt(0) || '';
+                              return (a + b).toUpperCase() || (n.charAt(0)||'').toUpperCase();
+                        }
+                        async function loadRecent(){
+                              try{
+                                    const res = await fetch(url);
+                                    if(!res.ok){ console.warn('dashboard stats fetch failed', res.status); return; }
+                                    const data = await res.json();
+                                    const students = data.recent_etudiants || [];
+                                    const list = document.getElementById('recent-list');
+                                    list.innerHTML = '';
+                                    if(students.length === 0){
+                                          list.innerHTML = '<li class="text-gray-500">Aucun étudiant récent</li>';
+                                          return;
+                                    }
+                                    // Build HTML for items using avatar image or initials fallback
+                                    const itemHtml = students.map(s => {
+                                          const photo = s.photo || '';
+                                          const name = (s.nom||'') + ' ' + (s.prenom||'');
+                                          const lvl = s.niveau_etude || '';
+                                          // avatar element: if photo available use <img>, otherwise show initials span
+                                          const avatar = photo ? `<span class="recent-avatar"><img src="${photo}" alt="${name}" onerror="this.style.display='none'; this.parentNode.classList.add('initials')"></span>` : `<span class="recent-avatar initials">${initials(s.nom, s.prenom)}</span>`;
+                                          // include data-id and role for accessibility
+                                          return `<li class="recent-item" data-id="${s.id}" role="button" tabindex="0"><span class="avatar-wrap">${avatar}</span><div class="recent-meta"><span class="recent-name">${name}</span><span class="recent-sub">${lvl ? lvl+' • ' : ''}ID:${s.id}</span></div></li>`;
+                                    }).join('');
+                                    // duplicate items for continuous scroll
+                                    let fullHtml = itemHtml + itemHtml;
+                                    // if only one item, repeat several times to create movement
+                                    if(students.length === 1){ fullHtml = itemHtml.repeat(6); }
+                                    list.innerHTML = fullHtml;
+                                    // compute animation duration: ~3s per original item, clamp between 8s and 40s
+                                    const duration = Math.min(Math.max(students.length * 3, 8), 40);
+                                    list.style.animationDuration = duration + 's';
+                                    // trigger animation on UL
+                                    list.classList.add('animate');
+                                    // after rendering, attach hover and click handlers (event delegation)
+                                    try{ if(typeof setupRecentInteractions === 'function') setupRecentInteractions(); }catch(e){}
+                              }catch(e){ console.warn('recent students load failed', e); }
+                        }
+                        if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadRecent);
+                        else loadRecent();
+                  })();
+                  </script>
+                  <style>
+                  /* Hover enlarge effect for recent items */
+                  .recent-item { transition: transform .18s cubic-bezier(.2,.9,.25,1), box-shadow .18s ease; cursor: pointer; }
+                  .recent-item:hover, .recent-item:focus { transform: translateY(-6px) scale(1.04); box-shadow: 0 18px 40px rgba(2,6,23,0.08); z-index: 6; }
+                  .recent-item .recent-avatar { transition: transform .18s ease, box-shadow .18s ease; }
+                  .recent-item:hover .recent-avatar, .recent-item:focus .recent-avatar { transform: scale(1.08); box-shadow: 0 8px 24px rgba(2,6,23,0.06); }
+                  /* Modal backdrop tweaks to match base modal styling */
+                  #recentVerifyModal.modal-overlay { align-items: center; justify-content: center; }
+                  #recentVerifyModal .modal { max-width:720px; width: calc(100% - 48px); }
+                  </style>
+
+                                                      <!-- Verification fiche removed from dashboard: handlers neutralized -->
+                                                      <script>
+                                                      // Neutralize verification-related global functions to prevent opening the fiche from dashboard
+                                                      // Keep safe no-op implementations so other dashboard code won't error if they reference these names.
+                                                      function openVerifyModal(id){ console.debug('[verify] openVerifyModal called on dashboard — no-op'); }
+                                                      function closeVerifyModal(){ console.debug('[verify] closeVerifyModal called on dashboard — no-op'); }
+                                                      function renderProgress(){ /* no-op on dashboard */ }
+                                                      function setVerifyStep(){ /* no-op on dashboard */ }
+                                                      // Remove recent-list handlers by replacing setupRecentInteractions with a version that does not call openVerifyModal
+                                                      function setupRecentInteractions(){ const list = document.getElementById('recent-list'); if(!list) return; list.removeEventListener('click', recentClickHandler); list.addEventListener('click', function noVerifyClick(e){ /* intentionally do nothing on click */ }); list.removeEventListener('keydown', recentKeyHandler); list.addEventListener('keydown', function noVerifyKey(e){ /* intentionally do nothing on keyboard */ }); }
+                                                      // Provide harmless placeholders for legacy upload element lookups (they won't be used on dashboard)
+                                                      const csrftoken = (function(){ try{ const v=document.cookie.match('(^|;) ?csrftoken=([^;]*)(;|$)'); return v? decodeURIComponent(v[2]) : null; }catch(e){ return null; } })();
+                                                      </script>
+                                                      <script>
+                                                      // Re-create the recent-list interaction helpers so loadRecent can call setupRecentInteractions()
+                                                      function setupRecentInteractions(){
+                                                            const list = document.getElementById('recent-list');
+                                                            if(!list) return;
+                                                            list.removeEventListener('click', recentClickHandler);
+                                                            list.addEventListener('click', recentClickHandler);
+                                                            list.removeEventListener('keydown', recentKeyHandler);
+                                                            list.addEventListener('keydown', recentKeyHandler);
+                                                      }
+
+                                                      function recentKeyHandler(e){
+                                                            if(e.key === 'Enter' || e.key === ' '){
+                                                                  const li = e.target.closest('.recent-item');
+                                                                  if(li) { e.preventDefault(); openVerifyModal(li.dataset.id); }
+                                                            }
+                                                      }
+
+                                                      function recentClickHandler(e){
+                                                            const li = e.target.closest('.recent-item');
+                                                            if(!li) return;
+                                                            const id = li.dataset.id;
+                                                            if(!id) return;
+                                                            openVerifyModal(id);
+                                                      }
+                                                      </script>
+        </div>
+
+      <div class="card p-6 bg-white shadow-sm border border-gray-100 rounded-lg">
+            <div class="flex items-center mb-2">
+                  <div class="mr-3 header-icon" aria-hidden="true">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" fill="#ecfccb"/><path d="M7 15v-6" stroke="#65a30d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 15V9" stroke="#16a34a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 15v-4" stroke="#059669" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                  <h3 class="text-xl md:text-2xl font-extrabold mb-0">Répartition par niveau</h3>
+            </div>
+            <p class="text-base text-gray-600 mb-4">Répartition des étudiants par niveau — aperçu visuel et chiffres</p>
+            <style>
+            .header-icon { opacity:0.95; }
+            .text-2xl.md\:text-3xl { line-height:1; }
+            /* level bars: larger and more prominent */
+            .lvl-bar { display:block; height: 1.1rem; border-radius: 9999px; transform-origin: left center; transition: width .8s ease; overflow:hidden; }
+            .lvl-bar-inner { display:block; height:100%; border-radius:9999px; }
+            .lvl-row { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+            .level-name { font-size:1rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:8px; }
+            .level-count { font-size:0.95rem; color:#374151; }
+            .lvl-icon { width:20px; height:20px; display:inline-block; opacity:0.9; }
+            .lvl-icon svg { width:100%; height:100%; display:block; }
+            .lvl-fill { transition: width 1s cubic-bezier(.2,.9,.2,1); }
+            </style>
+            <div class="space-y-3">
+                  {% for lvl in levels_distribution|slice:":6" %}
+                        <div class="lvl-row">
+                              <div style="flex:1; margin-right:12px;">
+                                    <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden lvl-bar">
+                                          {% if forloop.first %}
+                                                <span class="lvl-fill" data-pct="{{ lvl.pct_str }}" style="width:0; background:#16a34a"></span>
+                                          {% elif forloop.last %}
+                                                <span class="lvl-fill" data-pct="{{ lvl.pct_str }}" style="width:0; background:#ef4444"></span>
+                                          {% else %}
+                                                <span class="lvl-fill" data-pct="{{ lvl.pct_str }}" style="width:0; background:#f59e0b"></span>
+                                          {% endif %}
+                                    </div>
+                              </div>
+                              <div style="width:220px; text-align:right;">
+                                    <div class="level-name"><span class="lvl-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="8" r="3" fill="#fde68a"/><path d="M4 20c1.5-3 4-5 8-5s6.5 2 8 5" stroke="#f59e0b" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{{ lvl.nom }}</div>
+                                    <div class="level-count">{{ lvl.count }} ({{ lvl.pct }}%)</div>
+                              </div>
+                        </div>
+                  {% empty %}
+                        <div class="text-gray-500">Aucune donnée</div>
+                  {% endfor %}
+                  </div>
+                  
+      </div>
+</div>
+</div>
+</section>
+<section class="mt-10">
+<h2 class="text-xl font-semibold section-title mb-4"></h2>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- recent students card removed as requested -->
+<div class="card p-6 flex flex-col block group-occupation-card">
+      <div class="flex items-center mb-4">
+            <div class="p-3 rounded-lg mr-4" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#06b6d4,#0ea5a4);">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M16 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3z" fill="#ffffff" opacity="0.95"/>
+                        <path d="M6 11c1.657 0 3-1.343 3-3S7.657 5 6 5 3 6.343 3 8s1.343 3 3 3z" fill="#ffffff" opacity="0.95"/>
+                        <path d="M2 19c0-2.761 2.686-5 6-5s6 2.239 6 5v1H2v-1zM14 14c-.29 0-.57.02-.84.06A5.98 5.98 0 0 0 12 14c-3.314 0-6 2.239-6 5v1h12v-1c0-1.03-.29-1.99-.79-2.84A3.482 3.482 0 0 0 14 14z" fill="#ffffff" opacity="0.95"/>
+                  </svg>
+            </div>
+            <h3 class="text-lg font-semibold">Groupes &amp; Occupation</h3>
+      </div>
+      <p class="text-sm mb-2 flex-grow">Total de groupes (toutes formations) et taux d'occupation des Salles</p>
+      <div class="flex justify-between items-center text-sm">
+            <div>
+                  <p class="text-2xl font-bold stat-value">{{ group_count }}</p>
+                  <p class="stat-label">Groupes</p>
+            </div>
+            <div class="text-right">
+                  <p class="text-2xl font-bold text-premium-green">{{ group_occupation_percent }}%</p>
+                  <p class="stat-label">Occupation</p>
+            </div>
+      </div>
+      <div class="occupation-visual">
+                              <div class="occ-track">
+                                    <!-- data-pct is numeric (0-100); JS will apply the '%' and width to avoid template/CSS parsing issues -->
+                                    <div class="occ-fill" data-pct="{{ salle_occupation_today_percent|default:0 }}"></div>
+                              </div>
+                  <div class="occ-meta">
+                        <div class="occ-label">Salles occupées (aujourd'hui)</div>
+                        <div class="occ-pct">{{ salle_occupied_today_count|default:0 }} / {{ salle_count|default:0 }}</div>
+                  </div>
+      </div>
+      <div class="icon-deco" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="6" fill="#16a34a"/><circle cx="38" cy="14" r="4" fill="#06b6d4"/><circle cx="30" cy="36" r="5" fill="#34d399"/></svg>
+      </div>
+</div>
+      <div class="card p-6 profit-card">
+            <h3 class="text-lg font-semibold mb-2">Bénifice</h3>
+            <div class="flex items-center mb-3">
+                  <div class="p-3 bg-yellow-50 rounded-lg mr-4 money-icon-wrap" aria-hidden="true">
+                        <!-- decorative money/coin icon -->
+                        <svg class="money-icon" viewBox="0 0 64 64" width="32" height="32" xmlns="http://www.w3.org/2000/svg" fill="none">
+                              <circle cx="32" cy="32" r="28" fill="#FDE68A" />
+                              <path d="M32 20c4 0 6 1 6 3s-2 3-6 3-6-1-6-3 2-3 6-3z" fill="#D97706" opacity="0.3"/>
+                              <text x="32" y="40" text-anchor="middle" font-size="18" font-weight="700" fill="#92400E">DA</text>
+                        </svg>
+                  </div>
+                  <label for="netprofit-range" class="text-sm text-gray-600 mr-3">Période:</label>
+                  <select id="netprofit-range" class="border bg-white rounded-md px-3 py-1 text-sm shadow-sm">
+                        <option value="day">Jour</option>
+                        <option value="month">Mois</option>
+                        <option value="year">Annuel</option>
+                  </select>
+            </div>
+            <div class="flex items-center">
+                  <div class="netprofit-number">
+                        <span id="netprofit-value" class="netprofit-value {% if is_secretaire %}blurred-finance{% endif %}" data-day="{{ net_profit_day|default:0 }}" data-month="{{ tresorerie|default:0 }}" data-year="{{ net_profit_year|default:0 }}" style="font-family: 'Orbitron', 'Segoe UI', Roboto, Arial, monospace; font-weight:900; font-size:3rem; line-height:1;">0.00</span>
+                        <span class="netprofit-currency"> DA</span>
+                  </div>
+                  <div class="ml-4 hidden sm:block">
+                        <svg class="mini-money" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                              <path d="M12 1v2" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                              <path d="M7 5h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z" stroke="#f59e0b" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                              <path d="M12 9v6" stroke="#92400E" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                  </div>
+            </div>
+            <p class="text-sm text-gray-500 mt-2 netprofit-sub">Net profit pour la période sélectionnée</p>
+            <style>
+            /* Net profit visual styling */
+            .netprofit-number { display:flex; align-items:baseline; gap:8px; }
+            /* Use the same numeric/display font as match scores (Orbitron) for clearer, tabular digits */
+            .netprofit-value { display:inline-block; font-family: 'Orbitron', 'Segoe UI', Roboto, Arial, monospace !important; font-weight:900 !important; font-size:3rem !important; line-height:1; letter-spacing:0.5px; background: linear-gradient(90deg,#06b6d4,#0ea5a4); -webkit-background-clip: text; background-clip: text; color: transparent; }
+            .netprofit-currency { font-weight:800; font-size:1.25rem; color:#0f172a; opacity:0.95; margin-left:8px; text-decoration:none; }
+            .money-icon { transition: transform .6s ease, opacity .4s ease; transform-origin:center; }
+            .money-icon.float { animation: floatCoin 2s ease-in-out infinite; }
+            @keyframes floatCoin { 0% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-6px) rotate(8deg); } 100% { transform: translateY(0) rotate(0deg); } }
+            .netprofit-value.jolt { animation: joltNum .45s ease; }
+            @keyframes joltNum { 0% { transform: translateY(0) scale(1); } 30% { transform: translateY(-6px) scale(1.03); } 100% { transform: translateY(0) scale(1); } }
+            .mini-money { opacity:0.9; transform-origin:center; transition: transform .45s ease; }
+            .mini-money.pulse { transform: scale(1.12); }
+
+            /* Verification modal helper classes (copied from etudiants.html) */
+            .verify-top-actions { display:flex; justify-content:flex-end; gap:8px; align-items:center; }
+            .verify-top-actions .btn-secondary { background:#f3f4f6; color:#374151; border-radius:6px; padding:6px 10px; }
+                                    /* Icon/button primitives from etudiants page to keep modal identical */
+                                    .icon-btn {
+                                          background: var(--icon-btn-bg, #ffffff); border: 0; padding: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; border-radius:8px;
+                                          box-shadow: 0 4px 12px rgba(2,6,23,0.06);
+                                          transition: transform .14s ease, box-shadow .14s ease, background-position .28s ease;
+                                          min-width: 40px; height: 40px;
+                                          background-size: 150% 100%;
+                                          background-position: 0% 50%;
+                                          position: relative; overflow: hidden;
+                                    }
+                                    .icon-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(2,6,23,0.07); background-position: 100% 50%; }
+                                    .icon-svg { width: 18px; height: 18px; display: inline-block; vertical-align: middle; transition: stroke .18s ease, fill .18s ease, opacity .14s ease; }
+                                    .btn-primary { background-color: #16a34a; color: white; }
+                                    .btn-secondary { background-color: #e5e7eb; color: #374151; }
+                                    .verify-btn.icon-btn { background-image: linear-gradient(90deg, rgba(34,197,94,0.06), rgba(6,182,212,0.04)); }
+            .verify-circle { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; }
+            .verify-connector { height:6px; border-radius:4px; background:#e6e8eb; }
+            .file-picker { display:inline-flex; align-items:center; gap:8px; border:1px solid #d1d5db; padding:6px 10px; border-radius:6px; background:#fff; cursor:pointer; transition:box-shadow .18s ease, transform .08s ease; }
+            .file-picker:hover { box-shadow:0 6px 18px rgba(2,6,23,0.06); transform:translateY(-1px); }
+            .file-picker .file-input { display:none; }
+            .file-label { font-size:13px; color:#374151; }
+            .upload-btn { background:#10b981; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease; }
+            .upload-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(16,185,129,0.12); }
+            .step-controls { display:flex; gap:8px; justify-content:flex-end; align-items:center; }
+            .step-btn { padding:8px 12px; border-radius:6px; border:1px solid #d1d5db; background:#fff; color:#374151; cursor:pointer; font-weight:600; transition:transform .08s ease, box-shadow .12s ease, background .12s ease; }
+            .step-btn:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(2,6,23,0.06); }
+            .step-btn.primary { background:#10b981; color:white; border-color:transparent; }
+            .step-btn[disabled], .step-btn.disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+            /* Modal sizing and backdrop tweaks to match etudiants layout */
+            .modal-backdrop { align-items: center; justify-content: center; }
+            .modal { max-width: 980px; width: calc(100% - 96px); box-shadow: 0 10px 28px rgba(2,6,23,0.08); padding: 0.6rem; border-radius:10px; }
+            /* stronger overlay to match etudiants look */
+            .modal-overlay, .modal-backdrop { background: rgba(2,6,23,0.45); }
+            </style>
+      </div>
+
+      <div class="card p-6 lg:row-span-2 flex flex-col rev-card">
+            <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center">
+                        <div class="rev-header-icon mr-3" aria-hidden="true"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="20" height="20" rx="6" fill="#eef2ff"/><path d="M7 13c1.5-2 4-3 5-3s3.5 1 5 3" stroke="#0ea5a4" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7v2" stroke="#06b6d4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                        <h3 class="text-xl md:text-2xl font-extrabold mb-0">Revenus par formation <small class="text-sm text-gray-500">({{ revenue_by_formation|length }} formations)</small></h3>
+                  </div>
+                  <div class="rev-actions">
+                        <button class="rev-filter btn-sm" title="Trier">Trier</button>
+                  </div>
+            </div>
+                                    <div class="rev-list-container flex-grow overflow-auto">
+                                          <ul class="mt-2 text-lg space-y-3 rev-list">
+                    {% load i18n %}
+                    {% for r in revenue_by_formation %}
+                          {% cycle 'clr-a' 'clr-b' 'clr-c' 'clr-d' 'clr-e' as clr %}
+                          <li class="rev-item {{ clr }}" tabindex="0">
+                                <div class="rev-left">
+                                      <span class="rev-icon" aria-hidden="true">
+                                            <svg viewBox="0 0 24 24" width="28" height="28" xmlns="http://www.w3.org/2000/svg" fill="none">
+                                                <circle cx="12" cy="12" r="10" fill="rgba(255,255,255,0.08)"/>
+                                                <path d="M12 8v8" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M9 10h6a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H9" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                      </span>
+                                      <span class="rev-name">{{ r.formation }}</span>
+                                </div>
+                                <div class="rev-right">
+                                      <span class="rev-value {% if is_secretaire %}blurred-finance{% endif %}" data-total="{{ r.total|default:0 }}">0</span>
+                                      <span class="rev-currency"> DA</span>
+                                </div>
+                          </li>
+                    {% empty %}
+                          <li class="text-gray-500">Aucune donnée</li>
+                    {% endfor %}
+              </ul>
+            </div>
+            <style>
+            /* constrain the card height and make inner list scroll */
+            /* Increased to match desired visual level without changing other cards */
+            .rev-card { max-height: 520px; }
+            .rev-list-container { max-height: 420px; overflow:auto; padding-right:6px; }
+            /* ensure scrollbar doesn't push layout on small screens */
+            .rev-list-container::-webkit-scrollbar { width:8px; }
+            .rev-list-container::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.08); border-radius:6px; }
+            /* Revenus card: colorful & interactive */
+            .rev-card { background: linear-gradient(180deg, #ffffff, #fbfbff); border-radius: 0.6rem; }
+            .rev-header-icon { opacity:0.95; }
+            .rev-list { padding:8px 2px; }
+            .rev-item { display:flex; align-items:center; justify-content:space-between; padding:10px; border-radius:8px; transition: transform .22s ease, box-shadow .22s ease, background .2s ease; cursor:default; }
+            .rev-item:focus, .rev-item:hover { transform: translateY(-4px); box-shadow: 0 6px 18px rgba(15,23,42,0.06); }
+            .rev-left { display:flex; align-items:center; gap:12px; }
+            .rev-name { font-weight:700; color:#0f172a; }
+            .rev-right { font-weight:800; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto; color:#062f4f; display:flex; align-items:baseline; gap:6px; }
+            /* Larger revenue numbers and DA — use solid text color so numbers don't render as a block */
+            .rev-value { font-size:1.5rem; color:#062f4f; font-weight:800; text-decoration:none; }
+            /* Dark mode fallback for revenue numbers */
+            [data-theme="dark"] .rev-value { color: #cfeaf0 !important; }
+                  /* Larger revenue numbers and DA — use solid text color and explicitly remove any background-clip gradient
+                     (override global/base rules that may apply a clipped gradient with !important). */
+                  .rev-value {
+                        font-size:1.5rem;
+                        color:#062f4f;
+                        font-weight:800;
+                        text-decoration:none;
+                        background: none !important;
+                        -webkit-background-clip: initial !important;
+                        background-clip: initial !important;
+                        -webkit-text-fill-color: initial !important;
+                  }
+                  /* Dark mode: force a light readable text color and ensure no gradient clipping remains */
+                  [data-theme="dark"] .rev-value {
+                        background: none !important;
+                        -webkit-background-clip: initial !important;
+                        background-clip: initial !important;
+                        -webkit-text-fill-color: #cfeaf0 !important;
+                        color: #cfeaf0 !important;
+                  }
+            .rev-currency { font-size:1.05rem; color:#274254; font-weight:800; text-decoration:none; }
+            .rev-icon { width:40px; height:40px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; box-shadow: inset 0 -6px 14px rgba(0,0,0,0.04); }
+            .clr-a .rev-icon { background: linear-gradient(135deg,#7dd3fc,#60a5fa); }
+            .clr-b .rev-icon { background: linear-gradient(135deg,#fde68a,#fbbf24); }
+            .clr-c .rev-icon { background: linear-gradient(135deg,#bbf7d0,#34d399); }
+            .clr-d .rev-icon { background: linear-gradient(135deg,#fbcfe8,#f472b6); }
+            .clr-e .rev-icon { background: linear-gradient(135deg,#d8b4fe,#a78bfa); }
+            /* Strong override: ensure rev-value never gets a background/pill from other rules (including base.css) */
+            .rev-list .rev-item .rev-right .rev-value {
+                  background: none !important;
+                  box-shadow: none !important;
+                  padding: 0 !important;
+                  border-radius: 0 !important;
+                  -webkit-background-clip: initial !important;
+                  background-clip: initial !important;
+                  -webkit-text-fill-color: initial !important;
+                  color: inherit !important;
+                  display: inline-block !important;
+            }
+            /* Dark mode variant */
+            [data-theme="dark"] .rev-list .rev-item .rev-right .rev-value {
+                  background: none !important;
+                  box-shadow: none !important;
+                  padding: 0 !important;
+                  border-radius: 0 !important;
+                  -webkit-background-clip: initial !important;
+                  background-clip: initial !important;
+                  -webkit-text-fill-color: #cfeaf0 !important;
+                  color: #cfeaf0 !important;
+            }
+            </style>
+            <style>
+            /* Profit card font adjustments */
+            .profit-card h3 { font-family: 'Poppins', 'Segoe UI', Roboto, Arial, sans-serif; font-weight:700; }
+            .profit-card .netprofit-value { font-family: 'Segoe UI', 'Roboto', Arial, sans-serif !important; }
+
+            /* Reports card: color inner elements (icon background + icon color + texts) without changing card background */
+            .reports-card .p-3 { background: linear-gradient(135deg,#7c3aed,#06b6d4); }
+            .reports-card .material-icons { color: #ffffff; }
+            .reports-card .text-2xl, .reports-card p { color: inherit; }
+            [data-theme="dark"] .reports-card .p-3 { background: linear-gradient(135deg,#6d28d9,#06b6d4) !important; }
+            [data-theme="dark"] .reports-card .material-icons { color: #fff !important; }
+            [data-theme="dark"] .reports-card h3 { color: #e6eef8 !important; }
+            [data-theme="dark"] .reports-card .text-2xl, [data-theme="dark"] .reports-card p { color: #cfeaf0 !important; }
+            </style>
+            <script>
+            // animate revenue numbers when visible
+            (function(){
+                  function animateCount(el, to, duration){
+                        var start = null; var from = 0; to = parseFloat(to)||0; duration = duration||800;
+                        function step(ts){ if(!start) start = ts; var prog = Math.min((ts-start)/duration,1); var cur = from + (to-from)*prog; el.textContent = Math.round(cur).toLocaleString(); if(prog<1) requestAnimationFrame(step); }
+                        requestAnimationFrame(step);
+                  }
+                  function startAnim(){
+                        document.querySelectorAll('.rev-value').forEach(function(el,i){
+                              var to = el.getAttribute('data-total')||0;
+                              setTimeout(function(){ animateCount(el,to,900); }, i*80);
+                        });
+                  }
+                  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startAnim); else startAnim();
+            })();
+            </script>
+      </div>
+
+      <div class="card p-6">
+            <h3 class="text-lg font-semibold mb-2">Paiements étudiants</h3>
+            <div class="flex items-end gap-4 mt-2">
+                  <p class="text-3xl font-bold" id="payments-count">{{ student_payment_count }}</p>
+                  <p class="text-sm text-gray-500">/ {{ total_inscriptions }} inscriptions</p>
+            </div>
+            <div class="mt-4">
+                  <div class="occ-track small">
+                        <div class="occ-fill payments-fill" data-pct="{{ payments_percent }}%"></div>
+                  </div>
+                  <div class="flex justify-between text-sm mt-2">
+                        <span>0</span>
+                        <span>{{ payments_pct_str }}</span>
+                  </div>
+            </div>
+            <p class="text-sm text-gray-500 mt-3">Nombre total de paiements enregistrés pour les étudiants</p>
+      </div>
+      <div class="card p-6 flex flex-col block reports-card">
+            <div class="flex items-center mb-4">
+                  <div class="p-3 bg-purple-100 rounded-lg mr-4">
+                        <span class="material-icons text-purple-600">print</span>
+                  </div>
+                  <h3 class="text-lg font-semibold">Rapports imprimés</h3>
+            </div>
+            <p class="text-2xl font-bold">{{ printed_reports_count }}</p>
+            <p class="text-sm text-gray-500 mt-2">Nombre de rapports imprimés</p>
+      </div>
+</div>
+</section>
+<footer class="mt-10 flex space-x-4">
+
+</footer>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+      // apply widths for any element using data-pct to avoid template vars in inline styles
+      setTimeout(function(){
+            document.querySelectorAll('[data-pct]').forEach(function(el){
+                  var pct = el.getAttribute('data-pct') || '0%';
+                  if(typeof pct === 'string' && pct.indexOf('%') === -1) pct = pct + '%';
+                  el.style.width = pct;
+            });
+      }, 120);
+      // Net profit switcher — initialize and switch
+      var netSelect = document.getElementById('netprofit-range');
+      var netValue = document.getElementById('netprofit-value');
+      function formatNumber(n){
+            var num = parseFloat(n) || 0;
+            return num.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+      }
+      if(netSelect && netValue){
+            // Defensive: ensure the 'day' option exists in case a cached/static template didn't include it
+            if(!netSelect.querySelector('option[value="day"]')){
+                  var optDay = document.createElement('option'); optDay.value = 'day'; optDay.text = 'Jour';
+                  // insert at top so day appears first
+                  netSelect.insertBefore(optDay, netSelect.firstChild);
+            }
+            // set initial value: prefer day if available, then month, then year
+            var init = netValue.getAttribute('data-day') || netValue.getAttribute('data-month') || netValue.getAttribute('data-year') || '0';
+            // If data-day exists and is non-zero, select 'day' in the dropdown so UI shows it
+            try{
+                  var dayVal = parseFloat(netValue.getAttribute('data-day')||0)||0;
+                  if(dayVal){ netSelect.value = 'day'; }
+            }catch(e){}
+            // animated counter helper
+            function animateNumber(el, from, to, duration){
+                  var start = null; from = parseFloat(from)||0; to = parseFloat(to)||0; duration = duration||600;
+                  function step(ts){
+                        if(!start) start = ts;
+                        var progress = Math.min((ts - start)/duration, 1);
+                        var cur = from + (to - from) * progress;
+                        el.textContent = formatNumber(cur);
+                        if(progress < 1) window.requestAnimationFrame(step);
+                  }
+                  window.requestAnimationFrame(step);
+            }
+            var currentVal = parseFloat(init)||0;
+            netValue.textContent = formatNumber(currentVal);
+            netSelect.addEventListener('change', function(){
+                  var raw;
+                  if(this.value === 'year') raw = netValue.getAttribute('data-year');
+                  else if(this.value === 'month') raw = netValue.getAttribute('data-month');
+                  else if(this.value === 'day') raw = netValue.getAttribute('data-day');
+                  else raw = netValue.getAttribute('data-month');
+                  var newVal = parseFloat(raw) || 0;
+                  // jolt number and animate icon
+                  netValue.classList.add('jolt');
+                  setTimeout(function(){ netValue.classList.remove('jolt'); }, 500);
+                  var mini = document.querySelector('.mini-money'); if(mini) { mini.classList.add('pulse'); setTimeout(function(){ mini.classList.remove('pulse'); }, 600); }
+                  // update main money icon float briefly
+                  var bigIcon = document.querySelector('.money-icon'); if(bigIcon){ bigIcon.classList.add('float'); setTimeout(function(){ bigIcon.classList.remove('float'); }, 2200); }
+                  // animate numeric transition
+                  animateNumber(netValue, currentVal, newVal, 600);
+                  currentVal = newVal;
+            });
+      }
+      // animate header stat numbers from 0 to target
+      (function(){
+            function animate(el, to, duration){
+                  var start = null; var from = 0; to = parseInt(to)||0; duration = duration||900;
+                  function step(ts){ if(!start) start = ts; var prog = Math.min((ts-start)/duration,1); var cur = Math.round(from + (to-from)*prog); el.textContent = cur.toLocaleString(); if(prog<1) requestAnimationFrame(step); }
+                  requestAnimationFrame(step);
+            }
+            document.querySelectorAll('.stat-num').forEach(function(el,i){
+                  var to = el.getAttribute('data-value')||0;
+                  setTimeout(function(){ animate(el,to,900); }, i*120);
+            });
+      })();
+});
+</script>
+{% endblock %}

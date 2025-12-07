@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GénieSchool - Paiements</title>
+    {% load static %}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f5f5f7;
+            color: #333;
+        }
+
+        body {
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px 16px;
+        }
+
+        /* Summary Card */
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .summary-title {
+            font-size: 14px;
+            color: #999;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .summary-amount {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+
+        .summary-subtext {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .filter-btn {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        /* Payment Cards Grid */
+        .payments-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .payment-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .payment-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .payment-header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .payment-title {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-paid {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-pending {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .status-overdue {
+            background: #fee;
+            color: #c33;
+        }
+
+        .payment-body {
+            padding: 16px;
+        }
+
+        .payment-meta {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+            color: #666;
+        }
+
+        .meta-label {
+            font-weight: 600;
+        }
+
+        .amount-section {
+            padding: 12px 0;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 12px;
+        }
+
+        .amount-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .amount-label {
+            color: #666;
+        }
+
+        .amount-value {
+            font-weight: 700;
+            color: #333;
+        }
+
+        .amount-total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .progress-section {
+            margin: 16px 0;
+            padding: 12px 0;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .progress-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            background: #e0e0e0;
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-percent {
+            font-size: 12px;
+            color: #667eea;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        .payment-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-pay {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-pay:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-receipt {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+
+        .btn-receipt:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Timeline */
+        .timeline-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-top: 20px;
+        }
+
+        .timeline-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 16px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -36px;
+            top: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #667eea;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #667eea;
+        }
+
+        .timeline-date {
+            font-size: 12px;
+            color: #999;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .timeline-desc {
+            font-size: 13px;
+            color: #666;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+            z-index: 999;
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 12px;
+            color: #999;
+            text-decoration: none;
+            font-size: 12px;
+            transition: color 0.3s ease;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .payments-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .container {
+                padding: 16px 12px;
+            }
+
+            .filters {
+                gap: 8px;
+            }
+
+            .filter-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            .payment-title {
+                font-size: 14px;
+            }
+
+            .summary-amount {
+                font-size: 24px;
+            }
+
+            .payment-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>Mes Paiements</h1>
+        <a href="/dashboard/" class="back-btn">← Dashboard</a>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-title">Total à payer</div>
+                <div class="summary-amount">1 550 000</div>
+                <div class="summary-subtext">FCFA</div>
+            </div>
+            <div class="summary-card" style="border-left-color: #4caf50;">
+                <div class="summary-title">Payé</div>
+                <div class="summary-amount" style="color: #4caf50;">500 000</div>
+                <div class="summary-subtext">FCFA</div>
+            </div>
+            <div class="summary-card" style="border-left-color: #ff9800;">
+                <div class="summary-title">En attente</div>
+                <div class="summary-amount" style="color: #ff9800;">600 000</div>
+                <div class="summary-subtext">FCFA</div>
+            </div>
+            <div class="summary-card" style="border-left-color: #f44336;">
+                <div class="summary-title">Non payé</div>
+                <div class="summary-amount" style="color: #f44336;">450 000</div>
+                <div class="summary-subtext">FCFA</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <button class="filter-btn active" onclick="filterPayments('all')">Tous</button>
+            <button class="filter-btn" onclick="filterPayments('paid')">Payés</button>
+            <button class="filter-btn" onclick="filterPayments('pending')">En attente</button>
+            <button class="filter-btn" onclick="filterPayments('overdue')">Retard</button>
+        </div>
+
+        <!-- Payments Grid -->
+        <div class="payments-grid" id="paymentsGrid">
+            <!-- Payment 1 -->
+            <div class="payment-card" data-status="paid">
+                <div class="payment-header">
+                    <span class="payment-title">Python Avancé</span>
+                    <span class="status-badge status-paid">Payé</span>
+                </div>
+                <div class="payment-body">
+                    <div class="payment-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">Montant:</span>
+                            <span>500 000 FCFA</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Payé le:</span>
+                            <span>15 Nov 2024</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Référence:</span>
+                            <span>#PAY-001</span>
+                        </div>
+                    </div>
+
+                    <div class="amount-section">
+                        <div class="amount-row">
+                            <span class="amount-label">Montant total</span>
+                            <span class="amount-value">500 000 FCFA</span>
+                        </div>
+                        <div class="amount-row">
+                            <span class="amount-label">Montant payé</span>
+                            <span class="amount-value">500 000 FCFA</span>
+                        </div>
+                        <div class="amount-total">
+                            <span>Solde</span>
+                            <span style="color: #4caf50;">0 FCFA</span>
+                        </div>
+                    </div>
+
+                    <div class="payment-actions">
+                        <button class="btn-action btn-receipt">Reçu</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment 2 -->
+            <div class="payment-card" data-status="pending">
+                <div class="payment-header">
+                    <span class="payment-title">Web Moderne</span>
+                    <span class="status-badge status-pending">En attente</span>
+                </div>
+                <div class="payment-body">
+                    <div class="payment-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">Montant:</span>
+                            <span>600 000 FCFA</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Échéance:</span>
+                            <span>20 Déc 2024</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Statut:</span>
+                            <span>Partiellement payé</span>
+                        </div>
+                    </div>
+
+                    <div class="progress-section">
+                        <div class="progress-label">Progression de paiement</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 40%;"></div>
+                        </div>
+                        <div class="progress-percent">40% payé (240 000 FCFA)</div>
+                    </div>
+
+                    <div class="amount-section">
+                        <div class="amount-row">
+                            <span class="amount-label">Montant total</span>
+                            <span class="amount-value">600 000 FCFA</span>
+                        </div>
+                        <div class="amount-row">
+                            <span class="amount-label">Montant payé</span>
+                            <span class="amount-value">240 000 FCFA</span>
+                        </div>
+                        <div class="amount-total">
+                            <span>Reste à payer</span>
+                            <span style="color: #ff9800;">360 000 FCFA</span>
+                        </div>
+                    </div>
+
+                    <div class="payment-actions">
+                        <button class="btn-action btn-pay">Payer maintenant</button>
+                        <button class="btn-action btn-receipt">Détails</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment 3 -->
+            <div class="payment-card" data-status="overdue">
+                <div class="payment-header">
+                    <span class="payment-title">Design UI/UX</span>
+                    <span class="status-badge status-overdue">Non payé</span>
+                </div>
+                <div class="payment-body">
+                    <div class="payment-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">Montant:</span>
+                            <span>450 000 FCFA</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Échéance:</span>
+                            <span>30 Déc 2024</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Statut:</span>
+                            <span style="color: #f44336; font-weight: 700;">⚠️ En retard</span>
+                        </div>
+                    </div>
+
+                    <div class="amount-section">
+                        <div class="amount-row">
+                            <span class="amount-label">Montant total</span>
+                            <span class="amount-value">450 000 FCFA</span>
+                        </div>
+                        <div class="amount-row">
+                            <span class="amount-label">Montant payé</span>
+                            <span class="amount-value">0 FCFA</span>
+                        </div>
+                        <div class="amount-total">
+                            <span>Montant dû</span>
+                            <span style="color: #f44336;">450 000 FCFA</span>
+                        </div>
+                    </div>
+
+                    <div class="payment-actions">
+                        <button class="btn-action btn-pay">Payer d'urgence</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="container">
+        <div class="timeline-section">
+            <div class="timeline-title">📜 Historique des Transactions</div>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-date">15 Novembre 2024</div>
+                    <div class="timeline-desc">✓ Paiement de 500 000 FCFA pour Python Avancé</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">20 Novembre 2024</div>
+                    <div class="timeline-desc">✓ Paiement de 240 000 FCFA pour Web Moderne</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">01 Décembre 2024</div>
+                    <div class="timeline-desc">📌 Inscription à Design UI/UX • Montant dû: 450 000 FCFA</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/dashboard/" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>Accueil</span>
+        </a>
+        <a href="/student/inscriptions/" class="nav-item">
+            <span class="nav-icon">📚</span>
+            <span>Formations</span>
+        </a>
+        <a href="#" class="nav-item active">
+            <span class="nav-icon">💳</span>
+            <span>Paiements</span>
+        </a>
+        <a href="/student/profile/" class="nav-item">
+            <span class="nav-icon">👤</span>
+            <span>Profil</span>
+        </a>
+    </nav>
+
+    <script>
+        function filterPayments(status) {
+            const cards = document.querySelectorAll('.payment-card');
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                if (status === 'all') {
+                    card.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    const cardStatus = card.getAttribute('data-status');
+                    card.style.display = cardStatus === status ? 'block' : 'none';
+                    if (cardStatus === status) visibleCount++;
+                }
+            });
+
+            // Update filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

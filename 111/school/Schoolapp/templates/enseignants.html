@@ -1,0 +1,886 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Enseignants - GénieSchool{% endblock %}
+{% block content %}
+<style>
+  .btn-primary { background-color: var(--accent-2); color: white; }
+  .btn-primary:hover { background-color: #15803d; }
+  .btn-secondary { background-color: #e5e7eb; color: #374151; }
+  .btn-secondary:hover { background-color: #d1d5db; }
+  .modal-backdrop {
+    background: rgba(0,0,0,0.7); /* plus sombre, sans flou */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+  }
+  .icon-btn { background: var(--icon-btn-bg, #ffffff); border: 0; padding: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; border-radius:12px; box-shadow: 0 6px 18px rgba(2,6,23,0.06); transition: transform .16s cubic-bezier(.2,.9,.25,1), box-shadow .16s cubic-bezier(.2,.9,.25,1), opacity .12s ease; min-width:44px; height:44px; }
+  .icon-btn:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 18px 44px rgba(2,6,23,0.10); }
+  .icon-btn:active { transform: translateY(-1px) scale(.995); }
+  .icon-svg { width: 20px; height: 20px; display: inline-block; vertical-align: middle; transition: transform .14s ease, opacity .12s ease, filter .12s ease; }
+  /* Add specific visual variants for actions */
+  .icon-btn.edit { background: linear-gradient(180deg,#ecfeef,#d1fae5); border: 1px solid rgba(16,185,129,0.12); }
+  .icon-btn.edit .icon-svg { filter: drop-shadow(0 2px 6px rgba(5,150,105,0.08)); }
+  .icon-btn.delete { background: linear-gradient(180deg,#fff1f2,#fee2e2); border: 1px solid rgba(239,68,68,0.08); }
+  .icon-btn.delete .icon-svg { filter: drop-shadow(0 2px 6px rgba(239,68,68,0.08)); }
+  .icon-btn.secondary { background: linear-gradient(180deg,#ffffff,#f8fafc); border: 1px solid rgba(15,23,42,0.04); }
+  /* Tooltip for icon buttons (white background) */
+  .icon-btn[data-tooltip] { position: relative; }
+  .icon-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute; left: 50%; transform: translateX(-50%) translateY(6px);
+    bottom: 100%; background: #ffffff; color: #0f172a; font-size: 12px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid rgba(15,23,42,0.06); white-space: nowrap; pointer-events: none; opacity: 0; z-index: 60;
+    box-shadow: 0 6px 18px rgba(2,6,23,0.06); transition: opacity .18s ease, transform .18s cubic-bezier(.2,.9,.25,1);
+  }
+  .icon-btn[data-tooltip]:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .status-actif { background-color: var(--status-actif-bg, #dcfce7); color: var(--status-actif-text, #16a34a); }
+  .status-inactif { background-color: var(--status-inactif-bg, #fee2e2); color: var(--status-inactif-text, #dc2626); }
+  /* Enseignants modal custom styles */
+  .ens-modal-panel { max-width: 820px; width: calc(100% - 48px); padding: 18px; border-radius: 12px; animation: appearScale .26s cubic-bezier(.2,.9,.25,1) both; border: 1px solid rgba(16,185,129,0.06); }
+  @keyframes appearScale { from { opacity:0; transform: translateY(8px) scale(.98); } to { opacity:1; transform: translateY(0) scale(1); } }
+  /* Larger photo label and bigger icon for clearer avatar UX */
+  #addEnsModal .ens-photo-label, #editEnsModal .ens-photo-label { width:220px; height:220px; border-radius:9999px; display:flex; align-items:center; justify-content:center; margin: 0 auto 10px; border:2px dashed #e6f4ec; background: linear-gradient(180deg,#ffffff,#fbfffb); overflow:hidden; }
+  #addEnsModal .ens-photo-label .material-icons, #editEnsModal .ens-photo-label .material-icons { font-size:120px; color:#6b7280; transition: transform .16s ease, font-size .16s ease, color .16s ease; }
+  #addEnsModal .ens-photo-label img, #editEnsModal .ens-photo-label img { width:100%; height:100%; object-fit:cover; border-radius:9999px; display:block; }
+  /* pop-in animation for the avatar when modal opens */
+  @keyframes popIn { from { transform: scale(.92) translateY(8px); opacity:0; } to { transform: scale(1) translateY(0); opacity:1; } }
+  #addEnsModal:not(.hidden) .ens-photo-label, #editEnsModal:not(.hidden) .ens-photo-label { animation: popIn .32s cubic-bezier(.2,.9,.25,1) both; }
+  /* hover / focus effect for photo label */
+  #addEnsModal .ens-photo-label, #editEnsModal .ens-photo-label { cursor:pointer; transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
+  #addEnsModal .ens-photo-label:hover, #editEnsModal .ens-photo-label:hover,
+  #addEnsModal .ens-photo-label:focus, #editEnsModal .ens-photo-label:focus { transform: translateY(-6px) scale(1.06); box-shadow: 0 18px 42px rgba(6,182,136,0.16); border-color: rgba(6,182,136,0.18); }
+  #addEnsModal .ens-photo-label:hover .material-icons, #editEnsModal .ens-photo-label:hover .material-icons,
+  #addEnsModal .ens-photo-label:focus .material-icons, #editEnsModal .ens-photo-label:focus .material-icons { transform: scale(1.06); color:#059669; }
+  /* Compact inputs: slightly shorter height and larger width; add smooth transitions for focus interactions */
+  #addEnsModal input[type="text"], #addEnsModal input[type="email"], #addEnsModal input[type="date"], #addEnsModal select, #addEnsModal textarea,
+  #editEnsModal input[type="text"], #editEnsModal input[type="email"], #editEnsModal input[type="date"], #editEnsModal select, #editEnsModal textarea {
+    padding: .38rem .6rem !important; font-size: 14px !important; height: 40px; border-radius:8px; box-sizing:border-box; transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+  }
+  #addEnsModal textarea, #editEnsModal textarea { height:70px; padding:.45rem .6rem !important; }
+  /* Focus animation for inputs/selects/textareas to give a subtle lift and green accent */
+  #addEnsModal input:focus, #addEnsModal select:focus, #addEnsModal textarea:focus, #editEnsModal input:focus, #editEnsModal select:focus, #editEnsModal textarea:focus {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 36px rgba(6,182,136,0.12);
+    border-color: var(--app-green-2);
+    outline: none;
+  }
+  /* Make the specialite input visually match the niveau select (same padding, border and focus behavior).
+    Remove the CSS-added caret to avoid duplication with the native select arrow of the neighboring field. */
+  input[list="formations_list"] { -webkit-appearance: none; appearance: none; padding-right: 10px; text-decoration: none; }
+  /* Action buttons with color/hover animation */
+  #addEnsModal .btn-primary, #editEnsModal .btn-primary { background: linear-gradient(90deg,#10b981,#059669); box-shadow: 0 8px 26px rgba(16,185,129,0.12); transition: transform .12s ease, box-shadow .12s ease; }
+  #addEnsModal .btn-primary:hover, #editEnsModal .btn-primary:hover { transform: translateY(-3px); }
+  /* Compact popup list style: ensure custom popup stands above everything and looks white */
+  .combo-full-item { background: #fff; text-decoration: none; }
+</style>
+<main>
+  <header class="flex justify-between items-center mb-8">
+    <h1 class="text-4xl font-bold text-gray-800">Enseignants</h1>
+    <div class="flex space-x-4">
+      <button id="openAddEnsBtn" class="btn-primary py-2 px-4 rounded-lg flex items-center font-semibold"><span class="material-icons mr-2">person_add</span>Ajouter un enseignant</button>
+    </div>
+  </header>
+
+  <div class="overflow-x-auto bg-white rounded-xl shadow">
+    <table id="enseignantsTable" class="min-w-full text-sm text-left text-gray-700">
+      <thead class="bg-gray-100 text-gray-600 uppercase text-xs font-semibold">
+        <tr>
+          <th class="px-6 py-3">ID</th>
+          <th class="px-6 py-3">Photo</th>
+          <th class="px-6 py-3">NOM / PRÉNOM</th>
+          <th class="px-6 py-3">Tél</th>
+          <th class="px-6 py-3">Adresse</th>
+          <th class="px-6 py-3">Statut</th>
+          <th class="px-6 py-3 text-right">Actions</th>
+        </tr>
+      </thead>
+  <tbody id="teachersTbody">
+    {% for u in enseignants %}
+  <tr class="border-b teacher-row" data-id="{{ u.id }}" data-name="{{ u.nom }} {{ u.prenom }}" data-email="{{ u.email }}" data-phone="{{ u.telephone }}" data-address="{{ u.adresse|default:'' }}" data-status="{{ u.statut|default:'Actif' }}" data-photo="{{ u.photo_url|default:'' }}" data-specialite="{{ u.specialite|default:'' }}" data-niveau="{{ u.niveau|default:'' }}" data-sexe="{{ u.sexe|default:'' }}" data-bio="{{ u.bio|default:'' }}" data-date-naissance="{% if u.date_naissance %}{{ u.date_naissance|date:'Y-m-d' }}{% else %}{% endif %}" data-lieu-naissance="{{ u.lieu_naissance|default:'' }}" data-salaire="{{ u.salaire|default:'' }}" data-compte-bancaire="{{ u.compte_bancaire|default:'' }}">
+          <td class="px-6 py-4 font-mono text-sm">{{ u.id }}</td>
+          <td class="px-6 py-4"><img src="{% if u.photo_url %}{{ u.photo_url }}{% elif u.photo %}{{ u.photo.url }}{% else %}{% static 'images/happy.gif' %}{% endif %}" class="w-10 h-10 rounded-full"/></td>
+          <td class="px-6 py-4 font-semibold">{{ u.nom }} {{ u.prenom }}</td>
+          <td class="px-6 py-4">{{ u.telephone|default:'-' }}</td>
+          <td class="px-6 py-4">{{ u.adresse|default:'-' }}</td>
+          <td class="px-6 py-4">
+            {% with st=u.display_statut|default:u.statut|default:'Actif' %}
+              {% if st|lower == 'actif' %}
+                <span class="status-actif px-3 py-1 rounded-full text-xs font-semibold">{{ st }}</span>
+              {% else %}
+                <span class="status-inactif px-3 py-1 rounded-full text-xs font-semibold">{{ st }}</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+          <td class="px-6 py-4 text-right">
+            <button class="edit-ens-btn icon-btn edit" title="Modifier" aria-label="Modifier" data-tooltip="Modifier">
+              <svg class="icon-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><path d="M4 20h4l10.5-10.5a1.5 1.5 0 0 0 0-2.12L17.62 5.5a1.5 1.5 0 0 0-2.12 0L5.5 15V20z" fill="#059669" opacity="0.98"/><path d="M14.5 4.5l3 3" stroke="#027a4b" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </button>
+            <button class="delete-ens-btn delete-btn icon-btn delete" title="Supprimer" aria-label="Supprimer" data-tooltip="Supprimer">
+              <svg class="icon-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><path d="M9 3h6l1 1h3v2H5V4h3l1-1z" fill="#f87171" opacity="0.95"/><path d="M7 7h10v11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V7z" fill="#fecaca"/><path d="M10 11v5M14 11v5" stroke="#ef4444" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Aucun enseignant.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Add Ens Modal (student-style layout) -->
+<div id="addEnsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+  <div class="bg-white ens-modal-panel rounded-lg shadow-lg w-full" style="max-height:92vh; overflow:hidden; display:flex; flex-direction:column;">
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <h2 class="text-xl font-semibold">Ajouter un enseignant</h2>
+        <p class="text-sm text-gray-500">Complétez les informations ci-dessous</p>
+      </div>
+      <button type="button" onclick="closeAddEnsModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+    </div>
+    <div style="text-align:center; margin-top:10px;">
+      <label for="ensPhotoInput" class="ens-photo-label" tabindex="0" role="button" aria-label="Ajouter une photo d'enseignant">
+        <span class="material-icons">person</span>
+      </label>
+      <input id="ensPhotoInput" type="file" name="photo" accept="image/*" class="hidden" />
+      <div style="font-size:12px;color:#6b7280;margin-top:6px;">Taille recommandée: 400x400</div>
+    </div>
+
+    <form id="addEnsForm" enctype="multipart/form-data" style="display:flex; flex:1 1 auto; overflow:auto; margin-top:12px;">
+      {% csrf_token %}
+      <div style="width:100%;">
+        <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.6rem;">
+            <input name="nom" placeholder="Nom" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            <input name="prenom" placeholder="Prénom" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            <select name="sexe" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base">
+              <option value="">-- Sexe --</option>
+              <option value="M">Masculin</option>
+              <option value="F">Féminin</option>
+            </select>
+            <div>
+              <input name="nationalite" id="ens_nationalite" placeholder="Nationalité" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" autocomplete="off" />
+              <small class="text-xs text-gray-500">Par défaut: Algérien</small>
+            </div>
+            <input id="specialite" name="specialite" data-list="formations_list" placeholder="Spécialité (choisir ou taper)" class="ens-combo mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" aria-label="Spécialité" autocomplete="off" />
+            <select id="niveau" name="niveau" class="ens-combo mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" aria-label="Niveau">
+              <option value="">-- Niveau --</option>
+              <option value="Professeur">Professeur</option>
+              <option value="Professionnel">Professionnel</option>
+              <option value="Expert">Expert</option>
+            </select>
+            <!-- compte bancaire only; salaire moved to occupy telephone's previous spot -->
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <input name="compte_bancaire" id="ens_compte_bancaire" placeholder="Compte bancaire (RIB/IBAN)" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            </div>
+            <!-- salaire prend la place précédente du champ téléphone (avec select de mode à côté) -->
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <input name="salaire_valeur" type="number" step="0.01" placeholder="Salaire" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+              <select name="salaire_mode" class="mt-1 block px-3 py-2 bg-white border border-gray-300 rounded-md text-base" style="min-width:120px;">
+                <option value="per_month">Par mois</option>
+                <option value="per_hour">Par heure</option>
+                <option value="percent">Pourcentage</option>
+              </select>
+            </div>
+            <!-- téléphone descend d'une ligne et se place avant l'email -->
+            <input name="telephone" type="tel" placeholder="Téléphone" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            <input name="email" placeholder="Email" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            <textarea name="bio" placeholder="Bio / Courte présentation" rows="3" class="mt-1 col-span-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base"></textarea>
+            <input name="adresse" placeholder="Adresse" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md col-span-2 text-base" />
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Lieu de naissance</label>
+              <input name="lieu_naissance" id="ens_lieu_naissance" placeholder="Lieu de naissance" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" autocomplete="off" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Date de naissance</label>
+              <input name="date_naissance" id="ens_date_naissance" type="date" placeholder="Date de naissance" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            </div>
+          </div>
+
+          <div style="position:sticky; bottom:0; background:linear-gradient(rgba(255,255,255,0.96), rgba(255,255,255,1)); padding-top:12px; margin-top:12px; border-top:1px solid #eef2f7; display:flex; justify-content:flex-end; gap:0.5rem;">
+            <button type="button" onclick="closeAddEnsModal()" class="btn-secondary py-2 px-4 rounded">Annuler</button>
+            <button type="submit" class="btn-primary py-2 px-4 rounded">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Ens Modal (matches add layout) -->
+<div id="editEnsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+  <div class="bg-white ens-modal-panel rounded-lg shadow-lg w-full" style="max-height:92vh; overflow:hidden; display:flex; flex-direction:column;">
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <h2 class="text-xl font-semibold">Modifier un enseignant</h2>
+        <p class="text-sm text-gray-500">Mettez à jour les informations puis cliquez sur Enregistrer</p>
+      </div>
+      <button type="button" onclick="closeEditEnsModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+    </div>
+    <div style="text-align:center; margin-top:10px;">
+      <label for="editEnsPhotoInput" class="ens-photo-label" tabindex="0" role="button" aria-label="Remplacer la photo de l'enseignant">
+        <span class="material-icons">person</span>
+      </label>
+      <input id="editEnsPhotoInput" type="file" name="photo" accept="image/*" class="hidden" />
+      <div style="font-size:12px;color:#6b7280;margin-top:6px;">Cliquez pour remplacer la photo</div>
+    </div>
+
+    <form id="editEnsForm" enctype="multipart/form-data" style="display:flex; flex:1 1 auto; overflow:auto; margin-top:12px;">
+      {% csrf_token %}
+      <input type="hidden" name="id" />
+      <div style="width:100%;">
+        <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.6rem;">
+            <input name="nom" placeholder="Nom" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            <input name="prenom" placeholder="Prénom" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            <select name="sexe" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base">
+              <option value="">-- Sexe --</option>
+              <option value="M">Masculin</option>
+              <option value="F">Féminin</option>
+            </select>
+            <div>
+              <input name="nationalite" id="edit_ens_nationalite" placeholder="Nationalité" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+              <small class="text-xs text-gray-500">Par défaut: Algérien</small>
+            </div>
+            <input id="edit_specialite" name="specialite" data-list="formations_list" placeholder="Spécialité (choisir ou taper)" class="ens-combo mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" aria-label="Spécialité" autocomplete="off" />
+            <select id="edit_niveau" name="niveau" class="ens-combo mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" aria-label="Niveau">
+              <option value="">-- Niveau --</option>
+              <option value="Professeur">Professeur</option>
+              <option value="Professionnel">Professionnel</option>
+              <option value="Expert">Expert</option>
+            </select>
+            <!-- compte bancaire only; salaire moved to telephone spot -->
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <input id="edit_compte_bancaire" name="compte_bancaire" placeholder="Compte bancaire (RIB/IBAN)" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            </div>
+            <!-- salaire prend la place précédente du champ téléphone (avec select de mode à côté) -->
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <input id="edit_salaire_valeur" name="salaire_valeur" type="number" step="0.01" placeholder="Salaire" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+              <select id="edit_salaire_mode" name="salaire_mode" class="mt-1 block px-3 py-2 bg-white border border-gray-300 rounded-md text-base" style="min-width:120px;">
+                <option value="per_month">Par mois</option>
+                <option value="per_hour">Par heure</option>
+                <option value="percent">Pourcentage</option>
+              </select>
+            </div>
+            <!-- téléphone descend d'une ligne et se place avant l'email -->
+            <input id="edit_telephone" name="telephone" type="tel" placeholder="Téléphone" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            <input name="email" placeholder="Email" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base" />
+            <textarea name="bio" placeholder="Bio / Courte présentation" rows="3" class="mt-1 col-span-2 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-base"></textarea>
+            <input name="adresse" placeholder="Adresse" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md col-span-2 text-base" />
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Lieu de naissance</label>
+              <input name="lieu_naissance" id="edit_ens_lieu_naissance" placeholder="Lieu de naissance" class="mt-1 block w-full px-3 py-3 bg-white border border-gray-300 rounded-md text-lg" autocomplete="off" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Date de naissance</label>
+              <input name="date_naissance" id="edit_ens_date_naissance" type="date" placeholder="Date de naissance" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-lg" />
+            </div>
+          </div>
+
+          <div style="position:sticky; bottom:0; background:linear-gradient(rgba(255,255,255,0.96), rgba(255,255,255,1)); padding-top:12px; margin-top:12px; border-top:1px solid #eef2f7; display:flex; justify-content:flex-end; gap:0.5rem;">
+            <button type="button" onclick="closeEditEnsModal()" class="btn-secondary py-2 px-4 rounded">Annuler</button>
+            <button type="submit" class="btn-primary py-2 px-4 rounded">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete Ens Modal -->
+<div id="deleteEnsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+  <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-sm p-6">
+    <h3 class="text-lg font-semibold mb-2">Confirmer la suppression</h3>
+    <p>Voulez-vous vraiment supprimer <strong id="deleteEnsName"></strong> ?</p>
+    <input type="hidden" id="deleteEnsId" />
+    <div class="mt-4 flex justify-end">
+      <button type="button" onclick="closeDeleteEnsModal()" class="btn-secondary py-2 px-4 rounded mr-2">Annuler</button>
+      <button type="button" id="confirmDeleteEnsBtn" class="btn-primary py-2 px-4 rounded">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const addEnsModal = document.getElementById('addEnsModal');
+  document.getElementById('openAddEnsBtn').addEventListener('click', ()=> addEnsModal.classList.remove('hidden'));
+function openAddEnsModal() {
+  document.getElementById('addEnsModal').classList.remove('hidden');
+}
+function closeAddEnsModal() {
+  document.getElementById('addEnsModal').classList.add('hidden');
+  document.getElementById('addEnsForm').reset();
+}
+function openEditEnsModal() {
+  document.getElementById('editEnsModal').classList.remove('hidden');
+}
+function closeEditEnsModal() {
+  document.getElementById('editEnsModal').classList.add('hidden');
+  document.getElementById('editEnsForm').reset();
+}
+
+// Photo preview: when clicking the label, trigger file input; show preview inside label
+document.addEventListener('DOMContentLoaded', function(){
+  const addLabel = document.querySelector('#addEnsModal label[for="ensPhotoInput"]');
+  const addInput = document.getElementById('ensPhotoInput');
+  if (addLabel && addInput) {
+    // ensure label does not trigger input.click() multiple times (avoid duplicate dialog)
+    addLabel.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') addInput.click(); });
+  addInput.addEventListener('change', function(){
+      const f = this.files && this.files[0];
+      if (!f) return;
+  const img = document.createElement('img');
+  img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'cover'; img.style.borderRadius = '9999px';
+      const reader = new FileReader();
+      reader.onload = function(e){
+        addLabel.innerHTML = '';
+        addLabel.appendChild(img);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(f);
+    });
+  }
+
+  // Ensure nationality & place combos for enseignants mirror student UI
+  (function(){
+    // reuse datalists present on the page: nationalite_list and lieu_list
+    function readDatalist(id){ const dl = document.getElementById(id); if(!dl) return []; return Array.from(dl.querySelectorAll('option')).map(o=> (o.value || o.textContent || '').trim()).filter(Boolean); }
+    let nat = readDatalist('nationalite_list');
+    let lieu = readDatalist('lieu_list');
+    // If datalists are empty (e.g. moved or not yet populated), add minimal defaults so widget works
+    if ((!nat || nat.length === 0) && document.getElementById('nationalite_list')){
+      const dd = document.getElementById('nationalite_list'); ['Algérien','Français','Marocain','Tunisien','Sénégalais'].forEach(v=>{ const o=document.createElement('option'); o.value = v; dd.appendChild(o); });
+      nat = readDatalist('nationalite_list');
+    }
+    if ((!lieu || lieu.length === 0) && document.getElementById('lieu_list')){
+      const dd2 = document.getElementById('lieu_list'); ['Béjaïa','Alger','Oran','Constantine','Annaba'].forEach(v=>{ const o=document.createElement('option'); o.value = v; dd2.appendChild(o); });
+      lieu = readDatalist('lieu_list');
+    }
+
+    function makeList(key){ let el = document.getElementById('combo-full-'+key); if(el) return el; el = document.createElement('div'); el.id = 'combo-full-'+key; el.style.position='absolute'; el.style.zIndex=9999; el.style.background='#fff'; el.style.border='1px solid #e5e7eb'; el.style.borderRadius='6px'; el.style.boxShadow='0 10px 30px rgba(2,6,23,0.08)'; el.style.maxHeight='260px'; el.style.overflow='auto'; el.style.display='none'; document.body.appendChild(el); return el; }
+
+    function renderListFor(input, items){ const key = input.id || input.name || 'combo'; const list = makeList(key); const q = (input.value || '').toLowerCase(); const filtered = items.filter(v => !q || v.toLowerCase().indexOf(q) !== -1); list.innerHTML = filtered.map(v=>`<div class="combo-full-item" data-val="${v}" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6">${v}</div>`).join('') || '<div style="padding:8px 12px;color:#6b7280">Aucun résultat</div>'; const r = input.getBoundingClientRect(); list.style.left = (r.left + window.scrollX) + 'px'; list.style.top = (r.bottom + window.scrollY + 6) + 'px'; list.style.minWidth = r.width + 'px'; list.style.display = 'block'; list.querySelectorAll('.combo-full-item').forEach(it=>it.addEventListener('click', function(){ input.value = this.dataset.val || ''; list.style.display='none'; input.dispatchEvent(new Event('input')); input.focus(); })); function docHandler(e){ if(!list.contains(e.target) && e.target !== input){ list.style.display='none'; document.removeEventListener('click', docHandler); } } setTimeout(()=>document.addEventListener('click', docHandler), 10); return list; }
+
+  const addNat = document.getElementById('ens_nationalite'); const addLieu = document.getElementById('ens_lieu_naissance');
+  const editNat = document.getElementById('edit_ens_nationalite'); const editLieu = document.getElementById('edit_ens_lieu_naissance');
+  // include specialite fields as combo-enabled inputs so they get the same popup behavior
+  const addSpecialite = document.getElementById('specialite'); const editSpecialite = document.getElementById('edit_specialite');
+  const inputs = [addNat, addLieu, editNat, editLieu, addSpecialite, editSpecialite].filter(Boolean);
+    inputs.forEach(inp=>{
+      // if the input is a specialite, source items from the formations datalist
+      // default source
+      let items = (inp.id && inp.id.indexOf('nationalite')!==-1) ? nat : lieu;
+      // if the input declares a data-list attribute, use that datalist as source (prevents native datalist UI)
+      const dlRef = inp.getAttribute && (inp.getAttribute('data-list') || inp.getAttribute('list'));
+      if (dlRef) {
+        const fdl = document.getElementById(dlRef);
+        if (fdl) items = Array.from(fdl.querySelectorAll('option')).map(o=> (o.value||o.textContent||'').trim()).filter(Boolean);
+        else items = [];
+      }
+      inp.addEventListener('focus', ()=> renderListFor(inp, items));
+      inp.addEventListener('click', ()=> renderListFor(inp, items));
+      inp.addEventListener('input', function(){ const el = document.getElementById('combo-full-'+(this.id||this.name)); if(el && el.style.display !== 'none') renderListFor(this, items); });
+      inp.addEventListener('keydown', function(e){ if (e.key === 'Escape'){ const el = document.getElementById('combo-full-'+(this.id||this.name)); if(el) el.style.display='none'; } });
+    });
+
+    // Set default to Algérien for new add modal fields when opening
+    const addBtn = document.getElementById('openAddEnsBtn'); if(addBtn){ addBtn.addEventListener('click', ()=>{ if(addNat && !addNat.value) addNat.value = 'Algérien'; if(addLieu && !addLieu.value) addLieu.value = ''; }); }
+    // When opening edit modal, leave values as-is; but ensure if nationalite empty, default to Algérien
+    document.addEventListener('click', function(e){ const ed = e.target.closest('.edit-ens-btn'); if(ed){ setTimeout(()=>{ if(editNat && !editNat.value) editNat.value = 'Algérien'; }, 30); } });
+  })();
+
+  // Diagnostic / fallback: ensure datalists contain options; if reading failed, populate minimal defaults
+  (function(){
+    try{
+      const ddNat = document.getElementById('nationalite_list');
+      const ddLieu = document.getElementById('lieu_list');
+      const natCount = ddNat ? ddNat.querySelectorAll('option').length : 0;
+      const lieuCount = ddLieu ? ddLieu.querySelectorAll('option').length : 0;
+      if(!natCount && ddNat){ ['Algérien','Français','Marocain','Tunisien','Sénégalais'].forEach(v=>{ const o=document.createElement('option'); o.value=v; ddNat.appendChild(o); }); }
+      if(!lieuCount && ddLieu){ ['Béjaïa','Alger','Oran','Constantine','Annaba'].forEach(v=>{ const o=document.createElement('option'); o.value=v; ddLieu.appendChild(o); }); }
+      // small console hint for debugging
+      console.debug('enseignants: nationalite_list options=', ddNat ? ddNat.querySelectorAll('option').length : 0, 'lieu_list options=', ddLieu ? ddLieu.querySelectorAll('option').length : 0);
+    }catch(e){ /* ignore */ }
+  })();
+
+  const editLabel = document.querySelector('#editEnsModal label[for="editEnsPhotoInput"]');
+  const editInput = document.getElementById('editEnsPhotoInput');
+  if (editLabel && editInput) {
+    editLabel.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') editInput.click(); });
+    editInput.addEventListener('change', function(){
+      const f = this.files && this.files[0];
+      if (!f) return;
+      const img = document.createElement('img');
+      img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'cover';
+      const reader = new FileReader();
+      reader.onload = function(e){
+        editLabel.innerHTML = '';
+        editLabel.appendChild(img);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(f);
+    });
+  }
+
+  /* Removed duplicate add-form handler to avoid sending two requests and creating duplicate enseignants.
+    The form is handled later in the file (single submit listener) which performs the DOM update.
+  */
+
+  // Wire edit form submit
+  const editForm = document.getElementById('editEnsForm');
+  if (editForm) {
+    editForm.addEventListener('submit', function(ev){
+      ev.preventDefault();
+      // combine salaire fields if present
+      const sval = editForm.querySelector('[name="salaire_valeur"]');
+      const smode = editForm.querySelector('[name="salaire_mode"]') || editForm.querySelector('#edit_salaire_mode');
+      let salaireFormatted = '';
+      if (sval && sval.value !== ''){
+        const v = sval.value.toString(); const m = smode ? smode.value : 'per_month';
+        if (m === 'per_hour') salaireFormatted = v + 'DA/hr';
+        else if (m === 'per_month') salaireFormatted = v + 'DA/mois';
+        else if (m === 'percent') salaireFormatted = v + '%';
+      }
+      const formData = new FormData(editForm);
+      if (salaireFormatted) formData.set('salaire', salaireFormatted);
+      fetch('{% url "enseignants_edit" %}', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+        headers: {
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+      }).then(r => r.text().then(t => {
+        try { const json = JSON.parse(t);
+          if (json.success) {
+            // update existing row if present
+            const tr = document.querySelector(`#enseignantsTable tbody tr[data-id="${json.enseignant.id}"]`);
+            if (tr) {
+              tr.querySelector('td:nth-child(1)').textContent = json.enseignant.nom || '';
+              tr.querySelector('td:nth-child(2)').textContent = json.enseignant.prenom || '';
+              tr.querySelector('td:nth-child(3)').textContent = json.enseignant.email || '';
+              tr.querySelector('td:nth-child(4)').textContent = json.enseignant.telephone || '';
+              tr.querySelector('td:nth-child(5)').textContent = json.enseignant.specialite || '';
+              tr.querySelector('td:nth-child(6)').textContent = json.enseignant.nationalite || '';
+            }
+            closeEditEnsModal();
+          } else {
+            alert(json.error || 'Erreur');
+          }
+        } catch (e) {
+          const snippet = t.slice(0,1200);
+          alert('Réponse serveur inattendue:\n' + snippet);
+        }
+      }));
+    });
+  }
+});
+
+  function getCookie(name){ let cookieValue=null; if(document.cookie && document.cookie!==''){ const cookies=document.cookie.split(';'); for(let i=0;i<cookies.length;i++){ const c=cookies[i].trim(); if(c.substring(0,name.length+1)===(name+'=')){ cookieValue=decodeURIComponent(c.substring(name.length+1)); break; } } } return cookieValue; }
+  const csrftoken = getCookie('csrftoken');
+  const DEFAULT_AVATAR = "{% static 'images/happy.gif' %}";
+
+  document.getElementById('addEnsForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const form = e.target;
+    // combine salaire fields into a single formatted value before sending
+    const sval = form.querySelector('[name="salaire_valeur"]');
+    const smode = form.querySelector('[name="salaire_mode"]');
+    let salaireFormatted = '';
+    if (sval && sval.value !== ''){
+      const v = sval.value.toString();
+      const m = smode ? smode.value : 'per_month';
+      if (m === 'per_hour') salaireFormatted = v + 'DA/hr';
+      else if (m === 'per_month') salaireFormatted = v + 'DA/mois';
+      else if (m === 'percent') salaireFormatted = v + '%';
+    }
+    const data = new FormData(form);
+    if (salaireFormatted) data.set('salaire', salaireFormatted);
+  // append photo input which is outside the form
+  const addPhoto = document.getElementById('ensPhotoInput');
+  if (addPhoto && addPhoto.files && addPhoto.files[0]) data.set('photo', addPhoto.files[0]);
+  // ensure telephone value present (explicitly read from input)
+  const telEl = document.getElementById('ens_telephone'); if(telEl) data.set('telephone', telEl.value || '');
+    const submitBtn = form.querySelector('button[type="submit"]'); if(submitBtn) submitBtn.disabled = true;
+    fetch('{% url "enseignants_add" %}', { method: 'POST', headers: {'X-CSRFToken': csrftoken}, body: data }).then(r=>r.json()).then(json=>{
+      if(json.success){
+        const t = json.enseignant;
+        // prepend new row
+        const tbody = document.getElementById('teachersTbody');
+  const tr = document.createElement('tr'); tr.className='border-b teacher-row'; tr.dataset.id = t.id; tr.dataset.name = (t.nom||'') + ' ' + (t.prenom||''); tr.dataset.email = t.email||''; tr.dataset.phone = t.telephone||''; tr.dataset.address = t.adresse||''; tr.dataset.photo = t.photo||'';
+        const statusVal = (t.display_statut||t.statut||'Actif');
+  const statusHtml = (statusVal.toLowerCase()==='actif') ? `<span class="status-actif px-3 py-1 rounded-full text-xs font-semibold">${statusVal}</span>` : `<span class="status-inactif px-3 py-1 rounded-full text-xs font-semibold">${statusVal}</span>`;
+  tr.innerHTML = `
+          <td class="px-6 py-4 font-mono text-sm">${t.id}</td>
+          <td class="px-6 py-4"><img src="${t.photo||'{% static "images/happy.gif" %}'}" class="w-10 h-10 rounded-full"/></td>
+          <td class="px-6 py-4 font-semibold">${t.nom||''} ${t.prenom||''}</td>
+          <td class="px-6 py-4">${t.telephone||'-'}</td>
+          <td class="px-6 py-4">${t.adresse||'-'}</td>
+          <td class="px-6 py-4">${statusHtml}</td>
+          <td class="px-6 py-4 text-right">
+            <button class="edit-ens-btn icon-btn edit" title="Modifier" aria-label="Modifier" data-tooltip="Modifier">
+              <svg class="icon-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><path d="M4 20h4l10.5-10.5a1.5 1.5 0 0 0 0-2.12L17.62 5.5a1.5 1.5 0 0 0-2.12 0L5.5 15V20z" fill="#059669" opacity="0.98"/><path d="M14.5 4.5l3 3" stroke="#027a4b" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </button>
+            <button class="delete-ens-btn delete-btn icon-btn delete" title="Supprimer" aria-label="Supprimer" data-tooltip="Supprimer">
+              <svg class="icon-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><path d="M9 3h6l1 1h3v2H5V4h3l1-1z" fill="#f87171" opacity="0.95"/><path d="M7 7h10v11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V7z" fill="#fecaca"/><path d="M10 11v5M14 11v5" stroke="#ef4444" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
+          </td>
+    `;
+  // attach specialty/niveau and other optional dataset keys to new row if backend returned them
+  if (t.specialite) tr.dataset.specialite = t.specialite;
+  if (t.niveau) tr.dataset.niveau = t.niveau;
+  tr.dataset.sexe = t.sexe || '';
+  tr.dataset.bio = t.bio || '';
+  tr.dataset.dateNaissance = t.date_naissance || (t.dateNaissance || '');
+  tr.dataset.lieuNaissance = t.lieu_naissance || (t.lieuNaissance || '');
+  tr.dataset.salaire = t.salaire || '';
+  tr.dataset.compteBancaire = t.compte_bancaire || (t.compteBancaire || '');
+  tbody.prepend(tr);
+    closeAddEnsModal();
+      } else { alert('Erreur: '+(json.error||'')); }
+  }).catch(err=>{ console.error(err); alert('Erreur réseau'); })
+  .finally(()=>{ if(submitBtn) submitBtn.disabled = false; });
+  });
+
+  // Modal helpers
+  const editEnsModal = document.getElementById('editEnsModal');
+  const editEnsForm = document.getElementById('editEnsForm');
+  function openEditEnsModal(row){
+    // show modal first to avoid other code/resets interfering, then populate shortly after
+    try{ console.log('openEditEnsModal called for', row && row.dataset ? row.dataset.id : row); }catch(e){}
+    if (editEnsModal) editEnsModal.classList.remove('hidden');
+    // populate in a short timeout so focus/animations won't overwrite values
+    setTimeout(function(){
+      const id = row.dataset.id || '';
+      const name = row.dataset.name || '';
+      const parts = name.split(' ');
+      const prenom = parts.length>1 ? parts.pop() : '';
+      const nom = parts.join(' ') || name;
+      // safe assign using querySelector to avoid form.name property collisions
+      try{ const idEl = editEnsForm.querySelector('[name="id"]'); if (idEl) idEl.value = id; }catch(e){}
+      try{ const nomEl = editEnsForm.querySelector('[name="nom"]'); if (nomEl) nomEl.value = nom; }catch(e){}
+      try{ const prenEl = editEnsForm.querySelector('[name="prenom"]'); if (prenEl) prenEl.value = prenom; }catch(e){}
+      try{ const emailEl = editEnsForm.querySelector('[name="email"]'); if (emailEl) emailEl.value = row.dataset.email||''; }catch(e){}
+      try{ const telEl = editEnsForm.querySelector('[name="telephone"]'); if (telEl) telEl.value = row.dataset.phone||''; }catch(e){}
+      try{ const addrEl = editEnsForm.querySelector('[name="adresse"]'); if (addrEl) addrEl.value = row.dataset.address||''; }catch(e){}
+      // populate specialite & niveau if present on the row dataset
+      try{
+        const specEl = editEnsForm.querySelector('[name="specialite"]');
+        const nivEl = editEnsForm.querySelector('[name="niveau"]');
+        if (specEl) specEl.value = row.dataset.specialite || '';
+        if (nivEl) nivEl.value = row.dataset.niveau || '';
+      }catch(e){}
+      try{
+        const sexeEl = editEnsForm.querySelector('[name="sexe"]');
+        const bioEl = editEnsForm.querySelector('[name="bio"]');
+        const dateEl = editEnsForm.querySelector('[name="date_naissance"]');
+        const lieuEl = editEnsForm.querySelector('[name="lieu_naissance"]');
+        const compteEl = editEnsForm.querySelector('[name="compte_bancaire"]') || document.getElementById('edit_compte_bancaire');
+        if (sexeEl) {
+          const rawSexe = (row.dataset.sexe || '').toString().trim();
+          if (!rawSexe) sexeEl.value = '';
+          else {
+            const s = rawSexe.toLowerCase();
+            if (s === 'm' || s.startsWith('masc') || s.startsWith('homme') || s.startsWith('male')) sexeEl.value = 'M';
+            else if (s === 'f' || s.startsWith('fem') || s.startsWith('femme') || s.startsWith('female')) sexeEl.value = 'F';
+            else sexeEl.value = rawSexe;
+          }
+        }
+        if (bioEl) {
+          const raw = row.dataset.bio || '';
+          const dec = document.createElement('textarea'); dec.innerHTML = raw; bioEl.value = dec.value || '';
+        }
+        if (dateEl) dateEl.value = row.dataset.dateNaissance || row.dataset['date-naissance'] || '';
+        if (lieuEl) lieuEl.value = row.dataset.lieuNaissance || '';
+        if (compteEl) compteEl.value = row.dataset.compteBancaire || '';
+        // populate salaire
+        try{
+          const rawSal = row.dataset.salaire || '';
+          if (rawSal){
+            const editVal = editEnsForm.querySelector('#edit_salaire_valeur');
+            const editMode = editEnsForm.querySelector('#edit_salaire_mode');
+            if (rawSal.indexOf('%') !== -1){ const num = rawSal.replace('%','').trim(); if (editVal) editVal.value = parseFloat(num) || ''; if (editMode) editMode.value = 'percent'; }
+            else if (rawSal.toLowerCase().indexOf('da/hr') !== -1){ const num = rawSal.toLowerCase().replace('da/hr','').replace('dzd','').trim(); if (editVal) editVal.value = parseFloat(num) || ''; if (editMode) editMode.value = 'per_hour'; }
+            else if (rawSal.toLowerCase().indexOf('da/mois') !== -1 || rawSal.toLowerCase().indexOf('da/month') !== -1){ const num = rawSal.toLowerCase().replace('da/mois','').replace('dzd','').trim(); if (editVal) editVal.value = parseFloat(num) || ''; if (editMode) editMode.value = 'per_month'; }
+            else { const num = parseFloat(rawSal); if (!isNaN(num) && editVal) editVal.value = num; }
+          }
+        }catch(e){}
+      }catch(e){}
+      // populate photo preview in edit modal from dataset or existing img in the row
+      try{
+        const editLabel = document.querySelector('#editEnsModal label[for="editEnsPhotoInput"]');
+        const photoUrl = (row.dataset.photo && row.dataset.photo.trim()) || (row.querySelector('td:nth-child(2) img') ? row.querySelector('td:nth-child(2) img').src : '');
+        if (editLabel) {
+          if (photoUrl) {
+            editLabel.innerHTML = '';
+            const img = document.createElement('img'); img.src = photoUrl; img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'cover'; img.style.borderRadius = '9999px'; editLabel.appendChild(img);
+          } else {
+            editLabel.innerHTML = '<span class="material-icons">person</span>';
+          }
+        }
+      }catch(e){}
+      try{ console.log('populate complete for', id, {sexe: row.dataset.sexe, bio: row.dataset.bio}); }catch(e){}
+    }, 12);
+  }
+  function closeEditEnsModal(){ editEnsModal.classList.add('hidden'); }
+
+  // ...existing code...
+
+  const deleteEnsModal = document.getElementById('deleteEnsModal');
+  function openDeleteEnsModal(row){
+    const id = row.dataset.id || '';
+    const name = row.dataset.name || '';
+    document.getElementById('deleteEnsId').value = id;
+    document.getElementById('deleteEnsName').textContent = name;
+    deleteEnsModal.classList.remove('hidden');
+  }
+  function closeDeleteEnsModal(){ deleteEnsModal.classList.add('hidden'); }
+
+  // click handlers to open modals
+  document.addEventListener('click', function(e){
+    const del = e.target.closest('.delete-ens-btn');
+    if (del){ const row = del.closest('tr'); if(!row) return; openDeleteEnsModal(row); return; }
+    const ed = e.target.closest('.edit-ens-btn');
+    if (ed){ const row = ed.closest('tr'); if(!row) return; openEditEnsModal(row); return; }
+  });
+
+  // submit edit form via fetch
+  editEnsForm.addEventListener('submit', function(e){
+    e.preventDefault(); const form = e.target; const fd = new FormData(form);
+  // include edit photo input which is outside the form
+  const editPhoto = document.getElementById('editEnsPhotoInput');
+  if (editPhoto && editPhoto.files && editPhoto.files[0]) fd.set('photo', editPhoto.files[0]);
+  // ensure telephone value present (explicitly read from input)
+  const telEditEl = document.getElementById('edit_telephone'); if(telEditEl) fd.set('telephone', telEditEl.value || '');
+    const submitBtn = form.querySelector('button[type="submit"]'); if(submitBtn) submitBtn.disabled = true;
+    fetch('{% url "enseignants_edit" %}', { method:'POST', headers:{ 'X-CSRFToken': csrftoken }, body: fd }).then(r=>r.json()).then(json=>{
+      if (json.success){
+        const u = json.enseignant;
+        const row = document.querySelector('tr[data-id="'+u.id+'"]');
+        if (row) {
+          row.querySelector('td:nth-child(3)').textContent = (u.nom||'') + ' ' + (u.prenom||'');
+          row.dataset.name = (u.nom||'') + ' ' + (u.prenom||'');
+          row.dataset.email = u.email||'';
+          row.dataset.phone = u.telephone||'';
+          row.dataset.address = u.adresse||'';
+          row.dataset.photo = u.photo || '';
+          // update image element if present
+          const img = row.querySelector('td:nth-child(2) img');
+          if (img) img.src = u.photo || DEFAULT_AVATAR;
+          const statusCell = row.querySelector('td:nth-child(6)');
+          if(statusCell) statusCell.innerHTML = (u.display_statut && u.display_statut.toLowerCase()==='actif') ? `<span class="status-actif px-3 py-1 rounded-full text-xs font-semibold">${u.display_statut}</span>` : `<span class="status-inactif px-3 py-1 rounded-full text-xs font-semibold">${u.display_statut||u.statut||'Actif'}</span>`;
+          // keep specialite / niveau and other optional dataset keys in sync
+          if (u.specialite !== undefined) row.dataset.specialite = u.specialite || '';
+          if (u.niveau !== undefined) row.dataset.niveau = u.niveau || '';
+          if (typeof u.sexe !== 'undefined') row.dataset.sexe = u.sexe || '';
+          if (typeof u.bio !== 'undefined') row.dataset.bio = u.bio || '';
+                if (typeof u.date_naissance !== 'undefined') row.dataset.dateNaissance = u.date_naissance || '';
+                if (typeof u.lieu_naissance !== 'undefined') row.dataset.lieuNaissance = u.lieu_naissance || '';
+          if (typeof u.salaire !== 'undefined') row.dataset.salaire = u.salaire || '';
+          if (typeof u.compte_bancaire !== 'undefined') row.dataset.compteBancaire = u.compte_bancaire || '';
+        }
+    closeEditEnsModal();
+      } else { alert('Erreur: '+(json.error||'')); }
+  }).catch(err=>{ console.error(err); alert('Erreur réseau'); })
+  .finally(()=>{ if(submitBtn) submitBtn.disabled = false; });
+  });
+
+  // confirm delete modal button
+  document.getElementById('confirmDeleteEnsBtn').addEventListener('click', function(){
+    const id = document.getElementById('deleteEnsId').value;
+    if(!id) return closeDeleteEnsModal();
+    const fd = new FormData(); fd.append('id', id);
+    fetch('{% url "enseignants_delete" %}', { method:'POST', headers:{ 'X-CSRFToken': csrftoken }, body: fd }).then(r=>r.json()).then(json=>{
+      if(json.success){ const row = document.querySelector('tr[data-id="'+id+'"]'); if(row) row.remove(); closeDeleteEnsModal(); }
+      else { alert('Erreur: '+(json.error||'')); }
+    }).catch(err=>{ console.error(err); alert('Erreur réseau'); });
+  });
+</script>
+<!-- Shared datalists used by the combo widgets (copied from inscriptions page) -->
+<datalist id="nationalite_list">
+  <option value="Afghan"></option>
+  <option value="Albanais"></option>
+  <option value="Algérien"></option>
+  <option value="Allemand"></option>
+  <option value="Américain"></option>
+  <option value="Andorran"></option>
+  <option value="Angolais"></option>
+  <option value="Antiguais-et-Barbudien"></option>
+  <option value="Saoudien"></option>
+  <option value="Argentin"></option>
+  <option value="Arménien"></option>
+  <option value="Australien"></option>
+  <option value="Autrichien"></option>
+  <option value="Azerbaïdjanais"></option>
+  <option value="Bahaméen"></option>
+  <option value="Bahreïni"></option>
+  <option value="Bangladais"></option>
+  <option value="Barbadien"></option>
+  <option value="Belge"></option>
+  <option value="Béninois"></option>
+  <option value="Bhoutanais"></option>
+  <option value="Biélorusse"></option>
+  <option value="Birman"></option>
+  <option value="Bolivien"></option>
+  <option value="Bosnien-Herzégovinien"></option>
+  <option value="Botswanais"></option>
+  <option value="Brésilien"></option>
+  <option value="Britannique"></option>
+  <option value="Brunéien"></option>
+  <option value="Bulgare"></option>
+  <option value="Burkinabè"></option>
+  <option value="Burundais"></option>
+  <option value="Cambodgien"></option>
+  <option value="Camerounais"></option>
+  <option value="Canadien"></option>
+  <option value="Cap-Verdien"></option>
+  <option value="Centrafricain"></option>
+  <option value="Chilien"></option>
+  <option value="Chinois"></option>
+  <option value="Chypriote"></option>
+  <option value="Colombien"></option>
+  <option value="Comorien"></option>
+  <option value="Congolais"></option>
+  <option value="Costaricien"></option>
+  <option value="Croate"></option>
+  <option value="Cubain"></option>
+  <option value="Danois"></option>
+  <option value="Djiboutien"></option>
+  <option value="Dominicain"></option>
+  <option value="Dominiquais"></option>
+  <option value="Égyptien"></option>
+  <option value="Émirien"></option>
+  <option value="Équatorien"></option>
+  <option value="Érythréen"></option>
+  <option value="Espagnol"></option>
+  <option value="Estonien"></option>
+  <option value="Eswatini"></option>
+  <option value="Éthiopien"></option>
+  <option value="Fidjien"></option>
+  <option value="Finlandais"></option>
+  <option value="Français"></option>
+  <option value="Gabonais"></option>
+  <option value="Gambien"></option>
+  <option value="Géorgien"></option>
+  <option value="Ghanéen"></option>
+  <option value="Grec"></option>
+  <option value="Grenadien"></option>
+  <option value="Guatémaltèque"></option>
+  <option value="Guinéen"></option>
+  <option value="Bissau-Guinéen"></option>
+  <option value="Équato-Guinéen"></option>
+  <option value="Guyanien"></option>
+  <option value="Haïtien"></option>
+  <option value="Hondurien"></option>
+  <option value="Hongrois"></option>
+  <option value="Indien"></option>
+  <option value="Indonésien"></option>
+  <option value="Irakien"></option>
+  <option value="Iranien"></option>
+  <option value="Irlandais"></option>
+  <option value="Islandais"></option>
+  <option value="Israélien"></option>
+  <option value="Italien"></option>
+  <option value="Ivoirien"></option>
+  <option value="Jamaïcain"></option>
+  <option value="Japonais"></option>
+  <option value="Jordanien"></option>
+  <option value="Kazakh"></option>
+  <option value="Kényan"></option>
+  <option value="Kirghiz"></option>
+  <option value="Kiribatien"></option>
+  <option value="Koweïtien"></option>
+  <option value="Laotien"></option>
+  <option value="Letton"></option>
+  <option value="Libanais"></option>
+  <option value="Libérien"></option>
+  <option value="Libyen"></option>
+  <option value="Liechtensteinois"></option>
+  <option value="Lituanien"></option>
+  <option value="Luxembourgeois"></option>
+  <option value="Macédonien"></option>
+  <option value="Malaisien"></option>
+  <option value="Malawite"></option>
+  <option value="Maldivien"></option>
+  <option value="Malien"></option>
+  <option value="Maltais"></option>
+  <option value="Marocain"></option>
+  <option value="Marshallais"></option>
+  <option value="Mauricien"></option>
+  <option value="Mauritanien"></option>
+  <option value="Mongol"></option>
+  <option value="Monténégrin"></option>
+  <option value="Mozambicain"></option>
+  <option value="Namibien"></option>
+  <option value="Nauruan"></option>
+  <option value="Néerlandais"></option>
+  <option value="Néo-Zélandais"></option>
+  <option value="Népalais"></option>
+  <option value="Nigérian"></option>
+  <option value="Nigérien"></option>
+  <option value="Nord-Coréen"></option>
+  <option value="Norvégien"></option>
+  <option value="Palestinien"></option>
+</datalist>
+
+<datalist id="lieu_list">
+  <option value="Béjaïa"></option>
+  <option value="Amizour"></option>
+  <option value="Ferraoun"></option>
+  <option value="Taourirt Ighil"></option>
+  <option value="Chellata"></option>
+  <option value="Tamokra"></option>
+  <option value="Timezrit"></option>
+  <option value="Souk El Ténine"></option>
+  <option value="M'cisna"></option>
+  <option value="Tinabdher"></option>
+  <option value="Tichy"></option>
+  <option value="Semaoun"></option>
+  <option value="Kendira"></option>
+  <option value="Tifra"></option>
+  <option value="Ighram"></option>
+  <option value="Amalou"></option>
+  <option value="Ighil Ali"></option>
+  <option value="Fenaïa Ilmaten"></option>
+  <option value="Toudja"></option>
+  <option value="Darguina"></option>
+  <option value="Sidi-Ayad"></option>
+  <option value="Aokas"></option>
+  <option value="Beni Djellil"></option>
+  <option value="Adekar"></option>
+  <option value="Akbou"></option>
+  <option value="Seddouk"></option>
+  <option value="Tazmalt"></option>
+  <option value="Aït-R'zine"></option>
+  <option value="Chemini"></option>
+  <option value="Souk-Oufella"></option>
+  <option value="Taskriout"></option>
+  <option value="Tibane"></option>
+  <option value="Tala Hamza"></option>
+  <option value="Barbacha"></option>
+  <option value="Beni Ksila"></option>
+  <option value="Ouzellaguen"></option>
+  <option value="Bouhamza"></option>
+  <option value="Beni Mellikeche"></option>
+  <option value="Sidi-Aïch"></option>
+  <option value="El Kseur"></option>
+  <option value="Melbou"></option>
+  <option value="Akfadou"></option>
+  <option value="Leflaye"></option>
+  <option value="Kherrata"></option>
+  <option value="Draâ El-Kaïd"></option>
+  <option value="Tamridjet"></option>
+  <option value="Aït-Smail"></option>
+  <option value="Boukhelifa"></option>
+  <option value="Tizi N'Berber"></option>
+  <option value="Beni Maouche"></option>
+  <option value="Oued Ghir"></option>
+  <option value="Boudjellil"></option>
+</datalist>
+
+<datalist id="formations_list">
+  {% for f in formations_list %}
+    <option value="{{ f }}"></option>
+  {% empty %}
+    <!-- no formations available -->
+  {% endfor %}
+</datalist>
+
+{% endblock %}

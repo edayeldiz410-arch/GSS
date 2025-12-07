@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GénieSchool - Mes Formations</title>
+    {% load static %}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+        }
+
+        body {
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .header-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 16px;
+        }
+
+        /* Page Title */
+        .page-title {
+            margin-bottom: 24px;
+        }
+
+        .page-title h2 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .page-title p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        /* Formation Cards */
+        .formations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .formation-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border-left: 4px solid #667eea;
+        }
+
+        .formation-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .formation-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+        }
+
+        .formation-name {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .formation-category {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .formation-body {
+            padding: 16px;
+        }
+
+        .formation-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .info-item {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .info-label {
+            color: #999;
+            text-transform: uppercase;
+            font-size: 10px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .info-value {
+            color: #333;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .progress-section {
+            margin-bottom: 16px;
+        }
+
+        .progress-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .progress-bar {
+            background: #e0e0e0;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-inscrit {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status-en_cours {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .status-terminee {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #764ba2;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 12px;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .empty-text {
+            color: #999;
+            margin-bottom: 20px;
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+            z-index: 999;
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 12px;
+            color: #999;
+            text-decoration: none;
+            font-size: 12px;
+            transition: color 0.3s ease;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .formations-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .formation-info {
+                grid-template-columns: 1fr;
+            }
+
+            .page-title h2 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>GénieSchool</h1>
+        <div class="header-right">
+            <a href="/student/profile/edit/" class="header-btn">👤 Profil</a>
+            <a href="/logout/" class="header-btn">Déconnexion</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Page Title -->
+        <div class="page-title">
+            <h2>Mes Formations</h2>
+            <p>Suivi détaillé de vos inscriptions et progression</p>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <a href="?status=all" class="filter-btn {% if status_filter == 'all' %}active{% endif %}">
+                Toutes ({{ inscriptions|length }})
+            </a>
+            <a href="?status=inscrit" class="filter-btn {% if status_filter == 'inscrit' %}active{% endif %}">
+                Inscrites
+            </a>
+            <a href="?status=en_cours" class="filter-btn {% if status_filter == 'en_cours' %}active{% endif %}">
+                En Cours
+            </a>
+            <a href="?status=terminee" class="filter-btn {% if status_filter == 'terminee' %}active{% endif %}">
+                Terminées
+            </a>
+        </div>
+
+        <!-- Formations Grid -->
+        {% if inscriptions %}
+            <div class="formations-grid">
+                {% for inscription in inscriptions %}
+                <div class="formation-card">
+                    <div class="formation-header">
+                        <div class="formation-name">{{ inscription.formation.nom }}</div>
+                        <div class="formation-category">{{ inscription.formation.branche|default:"Formation" }}</div>
+                    </div>
+                    
+                    <div class="formation-body">
+                        <!-- Info Grid -->
+                        <div class="formation-info">
+                            <div class="info-item">
+                                <div class="info-label">Statut</div>
+                                <div>
+                                    <span class="status-badge status-{{ inscription.statut }}">
+                                        {{ inscription.statut|upper }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Durée</div>
+                                <div class="info-value">{{ inscription.formation.duree|default:"N/A" }} heures</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Inscription</div>
+                                <div class="info-value">{{ inscription.date_inscription|date:"d/m/Y" }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Niveau</div>
+                                <div class="info-value">{{ inscription.formation.niveau|default:"N/A" }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Progress -->
+                        <div class="progress-section">
+                            <div class="progress-label">
+                                <span>Progression</span>
+                                <span>{{ inscription.progress_percent|default:"0" }}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: {{ inscription.progress_percent|default:'0' }}%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Formation Description -->
+                        {% if inscription.formation.contenu %}
+                        <div style="background: #f9f9f9; padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+                            <p style="font-size: 12px; color: #666; line-height: 1.4;">
+                                {{ inscription.formation.contenu|truncatewords:30 }}
+                            </p>
+                        </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="action-buttons">
+                            <button class="action-btn btn-primary">Voir Détails</button>
+                            <button class="action-btn btn-secondary">Télécharger Cert.</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📚</div>
+                <div class="empty-title">Aucune Formation</div>
+                <div class="empty-text">Vous n'êtes pas inscrit à des formations pour le moment</div>
+                <a href="/student/formations/" style="
+                    display: inline-block;
+                    background: #667eea;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 6px;
+                    text-decoration: none;
+                    font-weight: 600;
+                ">Voir Les Formations Disponibles</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="/dashboard/" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>Accueil</span>
+        </a>
+        <a href="/student/inscriptions/" class="nav-item active">
+            <span class="nav-icon">📚</span>
+            <span>Formations</span>
+        </a>
+        <a href="/student/payments/" class="nav-item">
+            <span class="nav-icon">💳</span>
+            <span>Paiements</span>
+        </a>
+        <a href="/student/profile/edit/" class="nav-item">
+            <span class="nav-icon">👤</span>
+            <span>Profil</span>
+        </a>
+    </nav>
+</body>
+</html>

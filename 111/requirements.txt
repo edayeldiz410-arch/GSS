@@ -1,0 +1,6 @@
+Django>=3.2
+reportlab>=4.0
+weasyprint>=58.0
+gunicorn==21.2.0
+mysqlclient
+whitenoise>=6.0

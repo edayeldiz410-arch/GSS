@@ -1,0 +1,916 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Formations - GénieSchool{% endblock %}
+{% block content %}
+<!-- NOTE: This template uses an optional `pdf` field on the Formation model to store uploaded PDFs.
+     If you just pulled changes to models.py, be sure to create and apply migrations:
+       python manage.py makemigrations Schoolapp
+       python manage.py migrate
+     The backend view `edit_formation` accepts a multipart field named 'pdf'.
+-->
+<style>
+  /* compact card styles */
+  .btn-primary { background-color: var(--accent-2); color: white; }
+  .btn-primary:hover { background-color: #15803d; }
+  .btn-secondary { background-color: #f3f4f6; color: #374151; }
+  .card { background: white; border-radius: 10px; box-shadow: 0 6px 18px rgba(2,6,23,0.04); }
+  /* slightly larger cards (example-like) with hover zoom */
+  .formation-card { border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 6px 18px rgba(2,6,23,0.04); display: flex; flex-direction: column; max-width: 580px; width: 100%; transition: transform .22s cubic-bezier(.2,.9,.2,1), box-shadow .22s ease; }
+  .formation-card:hover { transform: translateY(-6px) scale(1.03); box-shadow: 0 18px 38px rgba(2,6,23,0.12); }
+  /* colorful, animated hover accent for cards */
+  .formation-card { will-change: transform; }
+  .formation-card::before{
+    content: '';
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(99,102,241,0.04) 45%, rgba(14,165,233,0.03) 100%);
+    transform: translateY(6px) scale(0.98);
+    opacity: 0; transition: transform .36s cubic-bezier(.2,.9,.2,1), opacity .28s ease, filter .28s ease;
+  /* removed filter: blur(...) to avoid blurry popups */
+  }
+  .formation-card:hover::before, .formation-card.open::before{ opacity: 1; transform: translateY(0) scale(1.02); /* removed blur to avoid blurry popups in dark mode */ }
+  /* subtle highlight inside thumbnail for depth */
+  .formation-card .thumb::after{
+    content: '';
+    position: absolute; left: 0; right: 0; bottom: 0; height: 44%; border-radius: 0 0 12px 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(2,6,23,0.06) 100%);
+    transition: opacity .28s ease, transform .36s ease;
+    pointer-events: none; z-index: 2;
+  }
+  .formation-card:hover .thumb::after{ transform: translateY(-6px); opacity: 0.95; }
+  .formation-card:hover{ transform: translateY(-8px) scale(1.035); box-shadow: 0 24px 60px rgba(2,6,23,0.16); }
+  .formation-card:hover h3{ color: #0b7a5a; text-shadow: 0 1px 0 rgba(255,255,255,0.6); }
+  .formation-card .view-toggle{ transition: transform .14s ease, box-shadow .14s ease, background .2s ease; }
+  .formation-card:hover .view-toggle{ transform: translateY(-3px); box-shadow: 0 8px 20px rgba(16,185,129,0.12); background: linear-gradient(90deg,#d1fae5,#f0fff4); }
+  /* slightly taller thumbnail for richer cards */
+  .formation-card .thumb { height: 150px; background-size: cover; background-position: center; position: relative; transition: transform .32s ease; }
+  .formation-card:hover .thumb { transform: scale(1.04); }
+  .formation-card .card-body { padding: 12px 14px; color: #0b1220; }
+  /* expanded card state when user clicks View */
+  .formation-card { position: relative; transition: all .32s cubic-bezier(.2,.9,.2,1); height: 340px; overflow: hidden; }
+  .formation-card .view-toggle { margin-top: 10px; padding: 8px 12px; border-radius: 10px; background: linear-gradient(90deg,#ecfdf5,#fff); border:1px solid rgba(16,185,129,0.12); color:#065f46; font-weight:700; cursor:pointer; }
+  /* detail becomes an absolute overlay inside the card so it doesn't change document flow */
+  .formation-card .detail { position: absolute; left: 0; right: 0; bottom: 0; top: 0; display: flex; flex-direction: column; gap: 12px; background: linear-gradient(180deg,#ffffff, #f7fff7); padding: 18px; transform: translateY(100%); opacity: 0; transition: transform .36s cubic-bezier(.2,.9,.2,1), opacity .28s ease; pointer-events: none; z-index: 30; }
+  /* smaller photo so content gets priority */
+  .formation-card .detail .detail-photo{ width:100%; height:110px; background-size:cover; background-position:center; border-radius:10px; box-shadow: 0 10px 26px rgba(2,6,23,0.08); }
+  /* highlighted, larger content for readability */
+  .formation-card .detail .detail-content{
+    color: #052e20; /* strong greenish-dark */
+    font-size: 16px;
+    line-height: 1.6;
+    font-weight: 600;
+    padding: 10px 12px;
+    border-left: 6px solid #10b981;
+    background: linear-gradient(90deg, rgba(16,185,129,0.04), rgba(255,255,255,0));
+    border-radius: 6px;
+    overflow:auto;
+  }
+  .formation-card.open { box-shadow: 0 30px 80px rgba(2,6,23,0.18); transform: translateY(-6px) scale(1.02); z-index: 40; }
+  .formation-card.open .detail { transform: translateY(0); opacity: 1; pointer-events: auto; }
+  /* 3D tilt effect support: prepare for transform-style and smooth transitions */
+  .formation-card { transform-style: preserve-3d; will-change: transform; }
+  /* subtle perspective when hovered/open to emphasize 3D feeling */
+  .formations-wrapper, #formationsGrid { perspective: 1000px; }
+  /* detail overlay close/return button */
+  .detail .detail-close-btn{ position:absolute; right:12px; top:12px; z-index:60; background: rgba(255,255,255,0.96); border:1px solid rgba(2,6,23,0.06); color:#064e3b; padding:6px 10px; border-radius:10px; font-weight:700; cursor:pointer; box-shadow: 0 6px 18px rgba(2,6,23,0.06); }
+  .detail .detail-close-btn:hover{ transform: translateY(-2px); }
+  /* larger, bolder title for better hierarchy */
+  .formation-card h3 { font-size: 20px; line-height:1.15; margin: 0 0 8px 0; color: #071022; font-weight:800; letter-spacing: -0.2px; }
+  .formation-card .text-xs { font-size: 11px; color: #6b7280; }
+  .formation-card .font-medium { font-weight: 600; font-size: 13px; color: #111827; }
+  .formation-card .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .formation-card .badge { background: #eef2ff; color:#3730a3; padding:4px 8px; border-radius:999px; font-size:11px; }
+  /* hide action icons until hover for a cleaner look */
+  .formation-card .action-icons { position: absolute; right: 12px; top: 12px; display:flex; gap:8px; z-index: 5; opacity: 0; transform: translateY(-6px); transition: opacity .18s ease, transform .18s ease; }
+  .formation-card:hover .action-icons { opacity: 1; transform: translateY(0); }
+  .formation-card .action-icons .icon-btn{ width:40px; height:36px; display:inline-flex; align-items:center; justify-content:center; padding:0 6px; border-radius:10px; box-shadow: 0 4px 12px rgba(2,6,23,0.06); transition: transform .14s ease, box-shadow .14s ease, opacity .14s ease; }
+  /* modern edit button (subtle green outline + icon) */
+  /* green accent for edit actions - more visible and elegant */
+  /* edit button: white background with green border for visibility on green thumbnails */
+  .icon-btn.edit-form-btn { background: #ffffff !important; border: 1px solid #10b981 !important; color: #059669 !important; padding: 6px 10px; border-radius: 10px; min-width:44px; height:36px; display:inline-flex; align-items:center; justify-content:center; box-shadow: 0 6px 16px rgba(6,95,70,0.06); z-index: 12; }
+  .icon-btn.edit-form-btn .icon-svg { color: inherit; stroke: currentColor; fill: none; }
+  .icon-btn.edit-form-btn:hover{ transform: translateY(-2px) scale(1.03); box-shadow: 0 12px 30px rgba(6,95,70,0.12); background: #10b981 !important; color: #ffffff !important; }
+  .icon-btn.edit-form-btn:hover .icon-svg { color: #ffffff !important; stroke: currentColor !important; }
+  /* modern delete button (solid red) */
+  .delete-form-btn { background: #ef4444; border: none; color: #fff; }
+  .delete-form-btn .icon-svg path { fill: #ffffff !important; }
+  .delete-form-btn:hover{ transform: translateY(-2px) scale(1.03); box-shadow: 0 8px 20px rgba(239,68,68,0.12); }
+  /* modern small button variants */
+  .btn-outline { background: rgba(255,255,255,0.98); border: 1px solid rgba(15,23,42,0.06); padding:6px 10px; border-radius:999px; font-size:13px; }
+  .btn-danger { background: #ef4444; color: white; border-radius:8px; padding:6px 8px; }
+  .btn-success { background: #10b981; color: white; border-radius:8px; padding:6px 8px; }
+  .action-icons { gap:8px; }
+  .action-icons .label { display:none; margin-left:6px; font-size:13px; }
+  .action-icons .icon-btn + .label { display:none; }
+  .icon-btn { background: rgba(255,255,255,0.92); border: none; padding: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; border-radius:8px; }
+  .icon-btn:hover{ transform: translateY(-2px); }
+  .icon-svg{ width:18px;height:18px; color: inherit; display:block; }
+  /* ensure svg uses currentColor so it inherits button color (works for stroke & fill) */
+  .delete-form-btn .icon-svg, .delete-form-btn .icon-svg * { color: #ffffff !important; stroke: currentColor !important; fill: currentColor !important; }
+  /* enforce red background and white icon for delete buttons */
+  .icon-btn.delete-form-btn { background: #ef4444 !important; color: #ffffff !important; }
+  .icon-btn.delete-form-btn .icon-svg { color: #ffffff !important; }
+  /* ensure edit button keeps a subtle background when combined */
+  .icon-btn.edit-form-btn { background: rgba(16,185,129,0.08); color: #065f46; }
+  .status-active{ background: rgba(16,185,129,0.12); color:#059669; font-weight:700; }
+  .status-inactive{ background: rgba(239,68,68,0.10); color:#ef4444; font-weight:700; }
+  /* price styling */
+  .formation-card .text-xs.opacity-90 { font-size:15px; color:#065f46; font-weight:700; }
+  /* modal & form improvements */
+  .modal-backdrop { background: rgba(2,6,23,0.45); }
+  .modal-card { background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%); border-radius: 12px; box-shadow: 0 18px 40px rgba(2,6,23,0.12); max-width: 980px; width: 95%; }
+  .form-input { width: 100%; border: 1px solid #e6e9ee; padding: 10px 12px; border-radius: 10px; background: #fff; box-shadow: inset 0 1px 0 rgba(16,24,40,0.02); transition: box-shadow .12s ease, border-color .12s ease; }
+  .form-input:focus { outline: none; border-color: #10b981; box-shadow: 0 6px 20px rgba(16,185,129,0.08); }
+  .modal-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .modal-title { font-size:18px; font-weight:700; color:#071022; }
+  .modal-close-button { background: transparent; border: none; font-size:20px; line-height:1; cursor:pointer; color:#6b7280; padding:6px 8px; border-radius:8px; }
+  .modal-close-button:hover { background: rgba(15,23,42,0.04); color:#111827; }
+  .modal-actions .btn-primary { box-shadow: 0 10px 30px rgba(16,185,129,0.12); }
+  .file-input { border: 1px dashed #e6e9ee; padding: 8px; border-radius: 8px; }
+</style>
+<main>
+  <div class="mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex-1 mr-6">
+        <input id="formationSearch" placeholder="Rechercher une formation..." class="w-full border rounded-lg px-4 py-2" />
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex gap-2 items-center">
+          <label style="display:flex;align-items:center;gap:8px;" title="Afficher seulement les formations en cours">
+            <input type="checkbox" id="filterInProgress" style="transform:scale(1.15);margin-right:6px;" />
+            <span class="text-sm">In Progress</span>
+          </label>
+        </div>
+        <button id="openAddFormBtn" class="btn-primary py-2 px-4 rounded-lg flex items-center font-semibold"><span class="material-icons mr-2">add</span> Ajouter</button>
+      </div>
+    </div>
+
+    <div class="card p-4">
+      <div id="formationsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  {% for f in formations %}
+  <div class="formation-card" data-id="{{ f.id }}" data-nom="{{ f.nom }}" data-contenu="{{ f.contenu|default:'' }}" data-photo="{% if f.photo_url %}{{ f.photo_url }}{% elif f.photo %}{{ f.photo.url }}{% else %}{% static 'images/default-formation.png' %}{% endif %}" data-pdf-url="{% if f.pdf %}{{ MEDIA_URL }}{{ f.pdf }}{% else %}{% url 'formation_pdf' f.id %}{% endif %}" data-prix-etudiant="{{ f.prix_etudiant|stringformat:'s'|cut:'.00' }}" data-duree="{{ f.duree|default:'' }}" data-branche="{{ f.branche|default:'' }}" data-categorie="{{ f.categorie|default:'' }}" data-niveau="{{ f.niveau|default:'' }}" data-statut="{{ f.statut|default:'active' }}" data-in-progress="{% if f.in_progress %}1{% else %}0{% endif %}">
+          <div class="thumb" style="background-image: url('{% if f.photo_url %}{{ f.photo_url }}{% elif f.photo %}{{ f.photo.url }}{% else %}{% static 'images/default-formation.png' %}{% endif %}');">
+            <div class="action-icons">
+              <button class="edit-form-btn icon-btn" title="Modifier" aria-label="Modifier">
+                <svg class="icon-svg" viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <g fill="none" fill-rule="evenodd">
+                    <rect width="24" height="24" rx="6" fill="#ECFDF5" />
+                    <path d="M7 17c0 .6.4 1 1 1h8c.6 0 1-.4 1-1V9l-4-4H8c-.6 0-1 .4-1 1v11z" fill="#10B981" opacity="0.12"/>
+                    <path d="M9.5 13.5l5-5" stroke="#059669" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="8.5" cy="14.5" r="0.75" fill="#059669"/>
+                  </g>
+                </svg>
+              </button>
+              <button class="delete-form-btn delete-btn icon-btn" title="Supprimer" aria-label="Supprimer">
+                <svg class="icon-svg" viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <g fill="none" fill-rule="evenodd">
+                    <rect width="24" height="24" rx="6" fill="#FEF2F2" />
+                    <path d="M9 7h6l-1 12a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2L9 7z" fill="#F87171" opacity="0.16"/>
+                    <path d="M10 11v6M14 11v6" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M8 6h8" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round"/>
+                  </g>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="meta">
+              <div class="badge">{{ f.branche|default:'-' }}</div>
+              {% if f.statut and f.statut|lower == 'active' or f.statut|lower == 'actif' %}
+                <div class="status-active px-3 py-1 rounded-full text-xs font-semibold">{{ f.statut }}</div>
+              {% endif %}
+            </div>
+            <h3 class="mt-2">{{ f.nom }}</h3>
+            <div class="text-xs mt-2">{{ f.contenu|default:''|truncatechars:120 }}</div>
+            <div class="meta mt-3">
+              <div class="text-sm font-medium">{{ f.duree|default:'-' }}</div>
+              <div class="text-xs opacity-90">{% if f.prix_etudiant is not None %}{{ f.prix_etudiant|stringformat:'s'|cut:'.00' }}{% else %}-{% endif %} DA</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+              <button type="button" class="view-toggle">View</button>
+              {% if f.pdf %}
+                <a href="{{ MEDIA_URL }}{{ f.pdf }}" target="_blank" rel="noopener" class="btn-outline" title="Ouvrir le PDF">Open PDF</a>
+                <button type="button" class="btn-outline view-pdf-inline" title="Voir le PDF en ligne">Voir PDF</button>
+              {% else %}
+                <a href="{% url 'formation_pdf' f.id %}" target="_blank" class="btn-outline upload-toggle" title="Ouvrir / téléverser le PDF dans un nouvel onglet">Upload PDF</a>
+              {% endif %}
+            </div>
+            <div class="detail" aria-hidden="true">
+              <button type="button" class="detail-close-btn" aria-label="Retour">← Retour</button>
+              <div class="detail-photo" style="background-image: url('{% if f.photo_url %}{{ f.photo_url }}{% elif f.photo %}{{ f.photo.url }}{% else %}{% static 'images/default-formation.png' %}{% endif %}');"></div>
+              <!--
+                PDF preview area
+                - When opening the detail, an <iframe> is injected here to load /formations/<id>/pdf/
+                - If the iframe fails to load (refused connection, 404, CORS), an upload UI is shown
+                - The upload UI POSTs to the existing '{% url "formations_edit" %}' endpoint with FormData:
+                    id: formation id
+                    pdf: file (application/pdf)
+                - Expected server response: JSON { success: true, formation: { ... } }
+                - After successful upload the iframe is reloaded to show the newly uploaded PDF.
+              -->
+              <div class="detail-pdf" style="height:220px; border-radius:8px; overflow:hidden; background:#fafafa; display:flex; align-items:center; justify-content:center;">
+                <!-- iframe will be injected here when user opens detail -->
+                <div class="pdf-placeholder text-sm text-gray-500">Aperçu PDF non chargé</div>
+                <!-- upload fallback (hidden by default) -->
+                <div class="pdf-upload-wrapper hidden" style="padding:12px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;">
+                  <div class="text-sm text-gray-700">Impossible de charger le PDF. Vous pouvez en téléverser un pour cette formation :</div>
+                  <input type="file" accept="application/pdf" class="pdf-upload-input" />
+                  <div style="display:flex;gap:8px;">
+                    <button type="button" class="btn-primary pdf-upload-btn">Téléverser</button>
+                    <button type="button" class="btn-secondary pdf-upload-cancel">Annuler</button>
+                  </div>
+                  <div class="pdf-upload-status text-sm text-gray-600" aria-live="polite"></div>
+                </div>
+              </div>
+              <div class="detail-content">{{ f.contenu|default:'Aucune description fournie.' }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Add & Edit Modals -->
+<div id="addFormModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+  <div class="modal-card p-6">
+    <div class="modal-header mb-3">
+      <div class="modal-title">Ajouter une formation</div>
+      <button type="button" class="modal-close-button" onclick="closeAddFormModal()" aria-label="Fermer">×</button>
+    </div>
+    <form id="addFormForm" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="grid grid-cols-2 gap-4">
+        <input name="nom" placeholder="Nom" class="form-input" />
+        <div style="display:flex;gap:8px;">
+          <input id="addDureeNumber" type="number" min="0" placeholder="Durée (entier)" class="form-input" />
+          <select id="addDureeUnit" class="form-input" style="max-width:140px;">
+            <option value="JOURS">JOURS</option>
+            <option value="HEURES">HEURES</option>
+            <option value="semaines">semaines</option>
+            <option value="mois">mois</option>
+          </select>
+          <input type="hidden" name="duree" id="addDureeHidden" />
+        </div>
+  <input name="prix_etudiant" placeholder="Prix (DA)" class="form-input" />
+        <select name="branche" id="addBranche" class="form-input">
+          <option value="">-- Choisir branche --</option>
+          <option value="Informatique">Informatique</option>
+          <option value="Electronique">Electronique</option>
+          <option value="Mecanique">Mécanique</option>
+        </select>
+        <select name="categorie" id="addCategorie" class="form-input">
+          <option value="">-- Choisir catégorie --</option>
+          <option value="Technique">Technique</option>
+          <option value="Management">Management</option>
+          <option value="Design">Design</option>
+        </select>
+        <input name="niveau" placeholder="Niveau" class="form-input" />
+        <div class="col-span-2">
+          <label class="text-sm text-gray-600">Photo (optionnelle)</label>
+          <div class="file-input mt-2" id="addPhotoWrapper">
+            <button type="button" class="btn-outline" id="addPhotoBtn">Choisir un fichier</button>
+            <span id="addPhotoName" class="ml-3 text-sm text-gray-600">Aucun fichier choisi</span>
+            <input type="file" name="photo" accept="image/*" class="hidden" id="addPhotoInput" />
+          </div>
+        </div>
+        <div class="col-span-2">
+          <label class="text-sm text-gray-600">Contenu détaillé</label>
+          <textarea name="contenu" placeholder="Contenu détaillé de la formation" class="form-input mt-2" rows="8"></textarea>
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end modal-actions">
+        <button type="button" onclick="closeAddFormModal()" class="btn-secondary py-2 px-4 rounded mr-2 hover:opacity-90">Annuler</button>
+        <button type="submit" class="btn-primary py-2 px-4 rounded shadow-lg">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+<div id="editFormModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+  <div class="modal-card p-6">
+    <div class="modal-header mb-3">
+      <div class="modal-title">Modifier la formation</div>
+      <button type="button" class="modal-close-button" onclick="closeEditFormModal()" aria-label="Fermer">×</button>
+    </div>
+    <form id="editFormForm" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="id" />
+      <div class="grid grid-cols-2 gap-4">
+        <input name="nom" placeholder="Nom" class="form-input" />
+        <div style="display:flex;gap:8px;">
+          <input id="editDureeNumber" type="number" min="0" placeholder="Durée (entier)" class="form-input" />
+          <select id="editDureeUnit" class="form-input" style="max-width:140px;">
+            <option value="JOURS">JOURS</option>
+            <option value="HEURES">HEURES</option>
+            <option value="semaines">semaines</option>
+            <option value="mois">mois</option>
+          </select>
+          <input type="hidden" name="duree" id="editDureeHidden" />
+        </div>
+  <input name="prix_etudiant" placeholder="Prix (DA)" class="form-input" />
+        <select name="branche" id="editBranche" class="form-input">
+          <option value="">-- Choisir branche --</option>
+          <option value="Informatique">Informatique</option>
+          <option value="Electronique">Electronique</option>
+          <option value="Mecanique">Mécanique</option>
+        </select>
+        <select name="categorie" id="editCategorie" class="form-input">
+          <option value="">-- Choisir catégorie --</option>
+          <option value="Technique">Technique</option>
+          <option value="Management">Management</option>
+          <option value="Design">Design</option>
+        </select>
+        <input name="niveau" placeholder="Niveau" class="form-input" />
+        <div class="col-span-2">
+          <label class="text-sm text-gray-600">Photo (optionnelle)</label>
+          <div class="file-input mt-2" id="editPhotoWrapper">
+            <button type="button" class="btn-outline" id="editPhotoBtn">Choisir un fichier</button>
+            <span id="editPhotoName" class="ml-3 text-sm text-gray-600">Aucun fichier choisi</span>
+            <input type="file" name="photo" accept="image/*" class="hidden" id="editPhotoInput" />
+          </div>
+        </div>
+        <div class="col-span-2">
+          <label class="text-sm text-gray-600">Contenu détaillé</label>
+          <textarea name="contenu" placeholder="Contenu détaillé de la formation" class="form-input mt-2" rows="8"></textarea>
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end modal-actions">
+        <button type="button" onclick="closeEditFormModal()" class="btn-secondary py-2 px-4 rounded mr-2 hover:opacity-90">Annuler</button>
+        <button type="submit" class="btn-primary py-2 px-4 rounded shadow-lg">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteConfirmModal" class="hidden fixed inset-0 z-60 flex items-center justify-center modal-backdrop">
+    <div class="bg-white rounded-lg shadow-lg w-96 p-6">
+      <h3 class="text-lg font-semibold mb-3">Confirmer la suppression</h3>
+      <p id="deleteConfirmText" class="text-sm text-gray-600 mb-4">Voulez-vous vraiment supprimer cette formation ? Cette action est irréversible.</p>
+      <div class="flex justify-end gap-3">
+        <button type="button" onclick="closeDeleteConfirm()" class="btn-outline">Annuler</button>
+        <button id="deleteConfirmBtn" type="button" class="btn-danger">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const addFormModal = document.getElementById('addFormModal');
+  const editFormModal = document.getElementById('editFormModal');
+  const formationsGrid = document.getElementById('formationsGrid');
+  const defaultImg = '{% static "images/default-formation.png" %}';
+  const mediaBase = '{{ MEDIA_URL }}';
+  // open add modal and reset file chooser display
+  document.getElementById('openAddFormBtn').addEventListener('click', ()=>{
+    // reset add form file name
+    const addPhotoName = document.getElementById('addPhotoName');
+    const addPhotoInput = document.getElementById('addPhotoInput');
+    if(addPhotoName) addPhotoName.textContent = 'Aucun fichier choisi';
+    if(addPhotoInput) addPhotoInput.value = null;
+    addFormModal.classList.remove('hidden');
+  });
+  function closeAddFormModal(){ addFormModal.classList.add('hidden'); }
+  function closeEditFormModal(){ editFormModal.classList.add('hidden'); }
+
+  function getCookie(name){ let cookieValue=null; if(document.cookie && document.cookie!==''){ const cookies=document.cookie.split(';'); for(let i=0;i<cookies.length;i++){ const c=cookies[i].trim(); if(c.substring(0,name.length+1)===(name+'=')){ cookieValue=decodeURIComponent(c.substring(name.length+1)); break; } } } return cookieValue; }
+  const csrftoken = getCookie('csrftoken');
+
+  // create card markup helper
+  function makeCardHtml(f){
+    return `
+          <div class="thumb" style="background-image: url('${f.photo||defaultImg}');">
+        <div class="action-icons">
+          <button class="edit-form-btn icon-btn" title="Modifier" aria-label="Modifier">
+            <svg class="icon-svg" viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <g fill="none" fill-rule="evenodd">
+                <rect width="24" height="24" rx="6" fill="#ECFDF5" />
+                <path d="M7 17c0 .6.4 1 1 1h8c.6 0 1-.4 1-1V9l-4-4H8c-.6 0-1 .4-1 1v11z" fill="#10B981" opacity="0.12"/>
+                <path d="M9.5 13.5l5-5" stroke="#059669" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="8.5" cy="14.5" r="0.75" fill="#059669"/>
+              </g>
+            </svg>
+          </button>
+          <button class="delete-form-btn delete-btn icon-btn" title="Supprimer" aria-label="Supprimer">
+            <svg class="icon-svg" viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <g fill="none" fill-rule="evenodd">
+                <rect width="24" height="24" rx="6" fill="#FEF2F2" />
+                <path d="M9 7h6l-1 12a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2L9 7z" fill="#F87171" opacity="0.16"/>
+                <path d="M10 11v6M14 11v6" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 6h8" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round"/>
+              </g>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="meta">
+          <div class="badge">${f.branche||'-'}</div>
+          ${ (f.statut && (f.statut.toLowerCase()==='active' || f.statut.toLowerCase()==='actif')) ? `<div class="status-active px-3 py-1 rounded-full text-xs font-semibold">${f.statut}</div>` : `<div class="status-inactive px-3 py-1 rounded-full text-xs font-semibold">${f.statut||''}</div>` }
+        </div>
+        <h3 class="mt-2">${f.nom||''}</h3>
+  <div class="text-xs mt-2">${(f.contenu||'').substring(0,120)}</div>
+        <div class="meta mt-3">
+          <div class="text-sm font-medium">${f.duree||'-'}</div>
+          <div class="text-xs opacity-90">${f.prix_etudiant||'-'} DA</div>
+        </div>
+        <button type="button" class="view-toggle">View</button>
+        <div class="detail" aria-hidden="true">
+          <button type="button" class="detail-close-btn" aria-label="Retour">← Retour</button>
+          <div class="detail-photo" style="background-image: url('${f.photo||defaultImg}');"></div>
+          <div class="detail-content">${(f.contenu||'Aucune description fournie.')}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // add formation (creates card)
+  document.getElementById('addFormForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    // combine duration number + unit into hidden duree field
+    const addNum = document.getElementById('addDureeNumber') && document.getElementById('addDureeNumber').value;
+    const addUnit = document.getElementById('addDureeUnit') && document.getElementById('addDureeUnit').value;
+    const addHidden = document.getElementById('addDureeHidden');
+    if(addHidden){ addHidden.value = addNum ? (addNum + ' ' + (addUnit||'HEURES')) : ''; }
+    const data = new FormData(e.target);
+    fetch('{% url "formations_add" %}', { method:'POST', headers: {'X-CSRFToken': csrftoken}, body: data })
+      .then(r=>{
+        // read body once as text, then handle JSON or text
+        return r.text().then(text=>{
+          if(!r.ok){
+            try{ const j = JSON.parse(text); throw new Error(j.error||text||'Erreur serveur'); } catch(e){ throw new Error(text||'Erreur serveur'); }
+          }
+          try{ return JSON.parse(text); } catch(e){ throw new Error('Invalid JSON response'); }
+        });
+      })
+      .then(json=>{
+      if(json.success){
+        const f = json.formation;
+        const div = document.createElement('div');
+  div.className = 'formation-card';
+  const photoUrl = f.photo ? (f.photo.indexOf('http')===0 || f.photo.indexOf('/')===0 ? f.photo : mediaBase + f.photo) : defaultImg;
+  div.innerHTML = makeCardHtml(Object.assign({}, f, { photo: photoUrl }));
+    // data attributes
+  div.dataset.id = f.id; div.dataset.nom = f.nom||''; div.dataset.contenu = f.contenu||''; div.dataset.photo = f.photo||''; div.dataset.pdfUrl = `/formations/${f.id}/pdf/`; div.dataset.duree = f.duree||''; div.dataset.prixEtudiant = f.prix_etudiant||''; div.dataset.branche = f.branche||''; div.dataset.categorie = f.categorie||''; div.dataset.niveau = f.niveau||''; div.dataset.statut = f.statut||'';
+  // mark inProgress flag on the new card (server may include it)
+  if(f.in_progress!==undefined){ div.dataset.inProgress = f.in_progress ? '1' : '0'; }
+    div.innerHTML = makeCardHtml(f);
+  formationsGrid.prepend(div);
+  // ensure 3D effect and close button work on the newly inserted card
+  if(typeof attachCard3DEffect === 'function') attachCard3DEffect(div);
+        closeAddFormModal();
+      } else { alert('Erreur: '+(json.error||'')); }
+  }).catch(err=>{ console.error(err); alert('Erreur: '+(err.message||'Erreur réseau')); });
+  });
+
+  // open edit modal for a card
+  document.addEventListener('click', function(e){
+    const editBtn = e.target.closest('.edit-form-btn');
+  if(editBtn){
+      const card = editBtn.closest('.formation-card'); if(!card) return;
+      const form = document.getElementById('editFormForm');
+  form.id.value = card.dataset.id || '';
+  form.nom.value = card.dataset.nom || '';
+  form.contenu.value = card.dataset.contenu || '';
+      // parse duree into number and unit (if present as "12 HEURES" or "12 heures")
+      const dureeRaw = card.dataset.duree || '';
+      let num = '';
+      let unit = 'HEURES';
+      if(dureeRaw){
+        const parts = dureeRaw.trim().split(/\s+/);
+        if(parts.length>=2 && !isNaN(parts[0])){ num = parts[0]; unit = parts.slice(1).join(' '); }
+        else if(!isNaN(dureeRaw)){ num = dureeRaw; }
+      }
+      const editNumEl = document.getElementById('editDureeNumber');
+      const editUnitEl = document.getElementById('editDureeUnit');
+      const editHidden = document.getElementById('editDureeHidden');
+      if(editNumEl) editNumEl.value = num || '';
+      if(editUnitEl) editUnitEl.value = unit || 'HEURES';
+      if(editHidden) editHidden.value = num ? (num + ' ' + unit) : '';
+  // prices and selects
+  form.prix_etudiant.value = card.dataset.prixEtudiant || '';
+      if(document.getElementById('editBranche')) document.getElementById('editBranche').value = card.dataset.branche || '';
+      if(document.getElementById('editCategorie')) document.getElementById('editCategorie').value = card.dataset.categorie || '';
+      form.niveau.value = card.dataset.niveau || '';
+  // fill large contenu textarea
+  form.contenu.value = card.dataset.contenu || '';
+      editFormModal.classList.remove('hidden');
+    }
+  });
+
+  // search/filter combined with In Progress checkbox
+  const filterInProgressEl = document.getElementById('filterInProgress');
+  function applyFilters(){
+    const q = (document.getElementById('formationSearch').value || '').trim().toLowerCase();
+    const onlyInProgress = filterInProgressEl && filterInProgressEl.checked;
+    document.querySelectorAll('.formation-card').forEach(function(card){
+      const name = (card.dataset.nom||'').toLowerCase();
+      const branche = (card.dataset.branche||'').toLowerCase();
+      const inProgress = (card.dataset.inProgress === '1' || card.dataset.inProgress === 'true' || card.dataset.inProgress === 'True');
+      const textMatch = !q || name.indexOf(q)!==-1 || branche.indexOf(q)!==-1;
+      const progressMatch = !onlyInProgress || inProgress;
+      const show = textMatch && progressMatch;
+      card.style.display = show ? '' : 'none';
+    });
+  }
+  document.getElementById('formationSearch').addEventListener('input', applyFilters);
+  if(filterInProgressEl) filterInProgressEl.addEventListener('change', applyFilters);
+
+  // submit edit: update card in-place
+  document.getElementById('editFormForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    // combine edited duration into hidden field
+    const editNum = document.getElementById('editDureeNumber') && document.getElementById('editDureeNumber').value;
+    const editUnit = document.getElementById('editDureeUnit') && document.getElementById('editDureeUnit').value;
+    const editHidden2 = document.getElementById('editDureeHidden');
+    if(editHidden2){ editHidden2.value = editNum ? (editNum + ' ' + (editUnit||'HEURES')) : ''; }
+    const fd = new FormData(e.target);
+    fetch('{% url "formations_edit" %}', { method:'POST', headers:{'X-CSRFToken': csrftoken}, body: fd })
+      .then(r=>{
+        return r.text().then(text=>{
+          if(!r.ok){ try{ const j = JSON.parse(text); throw new Error(j.error||text||'Erreur serveur'); } catch(e){ throw new Error(text||'Erreur serveur'); } }
+          try{ return JSON.parse(text); } catch(e){ throw new Error('Invalid JSON response'); }
+        });
+      })
+      .then(json=>{
+      if(json.success){
+        const obj = json.formation;
+        const card = document.querySelector('.formation-card[data-id="'+obj.id+'"]');
+        if(card){
+          // update thumb background
+          const photoUrl2 = obj.photo ? (obj.photo.indexOf('http')===0 || obj.photo.indexOf('/')===0 ? obj.photo : mediaBase + obj.photo) : defaultImg;
+          const thumb = card.querySelector('.thumb'); if(thumb) thumb.style.backgroundImage = `url('${photoUrl2}')`;
+          // update data attributes
+          card.dataset.nom = obj.nom||''; card.dataset.duree = obj.duree||''; card.dataset.prixEtudiant = obj.prix_etudiant||''; card.dataset.branche = obj.branche||''; card.dataset.categorie = obj.categorie||''; card.dataset.niveau = obj.niveau||''; card.dataset.contenu = obj.contenu||''; card.dataset.photo = obj.photo||''; card.dataset.statut = obj.statut||'';
+          if(obj.in_progress!==undefined){ card.dataset.inProgress = obj.in_progress ? '1' : '0'; }
+          // update visible texts
+          const branchEl = card.querySelector('.text-xs'); if(branchEl) branchEl.textContent = obj.branche||'-';
+          const titleEl = card.querySelector('h3'); if(titleEl) titleEl.textContent = obj.nom||'';
+          const durationEl = card.querySelector('.font-medium'); if(durationEl) durationEl.textContent = obj.duree||'-';
+          const priceEl = card.querySelector('.text-xs.opacity-90'); if(priceEl) priceEl.textContent = `${obj.prix_etudiant||'-'} DA`;
+          const statusSpan = card.querySelector('.status-active, .status-inactive');
+          if(statusSpan){ statusSpan.textContent = obj.statut||''; if(obj.statut && (obj.statut.toLowerCase()==='active' || obj.statut.toLowerCase()==='actif')){ statusSpan.className = 'status-active px-3 py-1 rounded-full text-xs font-semibold'; } else { statusSpan.className = 'status-inactive px-3 py-1 rounded-full text-xs font-semibold'; } }
+        }
+        closeEditFormModal();
+      } else { alert('Erreur: '+(json.error||'')); }
+  }).catch(err=>{ console.error(err); alert('Erreur: '+(err.message||'Erreur réseau')); });
+  });
+
+  // delete card (use modal confirmation)
+  let selectedCardForDelete = null;
+  function openDeleteConfirm(card){ selectedCardForDelete = card; document.getElementById('deleteConfirmModal').classList.remove('hidden'); }
+  function closeDeleteConfirm(){ selectedCardForDelete = null; document.getElementById('deleteConfirmModal').classList.add('hidden'); }
+
+  // custom file chooser wiring (buttons -> hidden inputs)
+  (function(){
+    const addPhotoBtn = document.getElementById('addPhotoBtn');
+    const addPhotoInput = document.getElementById('addPhotoInput');
+    const addPhotoName = document.getElementById('addPhotoName');
+    if(addPhotoBtn && addPhotoInput){
+      addPhotoBtn.addEventListener('click', ()=> addPhotoInput.click());
+      addPhotoInput.addEventListener('change', function(){ addPhotoName.textContent = this.files && this.files.length ? this.files[0].name : 'Aucun fichier choisi'; });
+    }
+
+    const editPhotoBtn = document.getElementById('editPhotoBtn');
+    const editPhotoInput = document.getElementById('editPhotoInput');
+    const editPhotoName = document.getElementById('editPhotoName');
+    if(editPhotoBtn && editPhotoInput){
+      editPhotoBtn.addEventListener('click', ()=> editPhotoInput.click());
+      editPhotoInput.addEventListener('change', function(){ editPhotoName.textContent = this.files && this.files.length ? this.files[0].name : 'Aucun fichier choisi'; });
+    }
+  })();
+
+  document.getElementById('deleteConfirmBtn').addEventListener('click', function(){
+    if(!selectedCardForDelete) return closeDeleteConfirm();
+    const fd = new FormData(); fd.append('id', selectedCardForDelete.dataset.id);
+    fetch('{% url "formations_delete" %}', { method:'POST', headers:{'X-CSRFToken': csrftoken}, body: fd })
+      .then(r=> r.text().then(text=>{ if(!r.ok){ try{ const j = JSON.parse(text); throw new Error(j.error||text||'Erreur serveur'); } catch(e){ throw new Error(text||'Erreur serveur'); } } try{ return JSON.parse(text); } catch(e){ throw new Error('Invalid JSON response'); } }))
+      .then(json=>{ if(json.success){ selectedCardForDelete.remove(); closeDeleteConfirm(); } else { alert('Erreur: '+(json.error||'')); } })
+      .catch(err=>{ console.error(err); alert('Erreur: '+(err.message||'Erreur reseau')); });
+  });
+
+  document.addEventListener('click', function(e){
+    const delBtn = e.target.closest('.delete-form-btn');
+    if(delBtn){
+      const card = delBtn.closest('.formation-card'); if(!card) return;
+      // set modal text optionally
+      const title = card.querySelector('h3') ? card.querySelector('h3').textContent.trim() : '';
+      if(title) document.getElementById('deleteConfirmText').textContent = `Voulez-vous vraiment supprimer "${title}" ? Cette action est irréversible.`;
+      openDeleteConfirm(card);
+    }
+  });
+
+  // Render course content as a simple, borderless HTML support page.
+  // If there is no content, open a completely empty page (page vide) as requested.
+  function escapeHtml(s){ return String(s||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/\r/g,'')
+    .replace(/\n/g,'<br/>'); }
+
+  function openHtmlSupportPage(data){
+    const w = window.open('', '_blank');
+    if(!w){ alert('Impossible d\'ouvrir une nouvelle fenêtre. Autorisez les popups.'); return; }
+    const title = data.nom && data.nom.trim() ? data.nom.trim() : '';
+    const content = data.contenu || '';
+
+    // Build an editable A4-styled editor with toolbar.
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title||'Support')}</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+      :root{color-scheme: light}
+      html,body{height:100%;margin:0;padding:0;background:#f3f4f6;font-family:Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
+  .toolbar{position:fixed;left:0;right:0;top:0;height:56px;background:var(--toolbar-bg, #ffffff);border-bottom:1px solid #e6e6e6;display:flex;align-items:center;gap:8px;padding:8px 12px;z-index:60}
+  .toolbar button{background:var(--toolbar-btn-bg, #fff);border:1px solid #ddd;padding:8px 10px;border-radius:6px;cursor:pointer}
+      .toolbar button.primary{background:#10b981;color:#fff;border-color:transparent}
+      .toolbar .zoom{display:flex;align-items:center;gap:6px}
+      .editor-wrap{padding:76px 12px 40px;display:flex;flex-direction:column;align-items:center;gap:18px}
+      /* A4 page exactly */
+  .page{width:210mm;height:297mm;background:var(--page-bg, #fff);box-shadow:0 6px 18px rgba(2,6,23,0.08);padding:24mm 18mm;box-sizing:border-box;overflow:hidden;position:relative;transform-origin:top center}
+  .page .sheet{width:100%;height:100%;outline:none;overflow:auto;min-height:0;-webkit-user-modify:read-write-plaintext-only}
+      .page + .page{margin-top:12px}
+      .page h1{font-size:20px;margin:0 0 12px}
+      .page h2{font-size:16px;margin:8px 0}
+      .page p{font-size:13px;line-height:1.6;margin:8px 0}
+      .page ul{margin:8px 0 8px 20px}
+      .controls{position:absolute;right:8px;top:8px;display:flex;gap:6px}
+      .hidden{display:none}
+      @media print{ .toolbar, body{background:#fff} .page{box-shadow:none;margin:0;page-break-after:always} }
+    </style></head><body>
+      <div class="toolbar">
+        <button id="btnTitle">Titre</button>
+        <button id="btnSubtitle">Sous-titre</button>
+        <button id="btnParagraph">Paragraphe</button>
+        <button id="btnList">Liste</button>
+        <button id="btnAddPage" class="primary">Ajouter page</button>
+        <div style="flex:1"></div>
+        <div class="zoom">
+          <button id="zoomOut">-</button>
+          <input id="zoomRange" type="range" min="30" max="120" value="80" style="width:120px" />
+          <button id="zoomIn">+</button>
+          <button id="fitWidth">Fit</button>
+        </div>
+        <button id="btnPrint">Imprimer</button>
+      </div>
+      <div class="editor-wrap" id="editorWrap">
+        <!-- pages inserted here -->
+      </div>
+    <script>
+      // helper to create editable page
+      function createPage(initialHtml){
+        const page = document.createElement('div'); page.className = 'page';
+        const sheet = document.createElement('div'); sheet.className = 'sheet';
+        sheet.contentEditable = 'true'; sheet.spellcheck = false; sheet.tabIndex = 0; sheet.style.overflow = 'auto';
+        // ensure selection works when page is scaled
+        sheet.style.webkitUserSelect = 'text'; sheet.style.userSelect = 'text';
+        if(initialHtml) sheet.innerHTML = initialHtml;
+        // small aria role
+        sheet.setAttribute('role','textbox'); sheet.setAttribute('aria-multiline','true');
+        page.appendChild(sheet);
+        // attach input listener to handle overflow
+        sheet.addEventListener('input', function(){ handleOverflow(sheet); });
+        // focus handler: when user clicks page container, focus the sheet
+        page.addEventListener('click', function(e){ if(e.target === page) sheet.focus(); });
+        return page;
+      }
+
+      const editorWrap = document.getElementById('editorWrap');
+      function addNewPage(html){ const p = createPage(html||''); editorWrap.appendChild(p); p.scrollIntoView({behavior:'smooth'}); return p; }
+
+      // toolbar actions
+      function getActiveSheet(){ const focused = document.activeElement; const page = focused && focused.closest && focused.closest('.page'); if(page) return page.querySelector('.sheet'); const first = editorWrap.querySelector('.page'); return first ? first.querySelector('.sheet') : null; }
+      document.getElementById('btnTitle').addEventListener('click', ()=>{ const target = getActiveSheet(); if(!target) return; const h = document.createElement('h1'); h.textContent = 'Titre'; target.appendChild(h); placeCaretAtEnd(h); handleOverflow(target); });
+      document.getElementById('btnSubtitle').addEventListener('click', ()=>{ const target = getActiveSheet(); if(!target) return; const h = document.createElement('h2'); h.textContent = 'Sous-titre'; target.appendChild(h); placeCaretAtEnd(h); handleOverflow(target); });
+      document.getElementById('btnParagraph').addEventListener('click', ()=>{ const target = getActiveSheet(); if(!target) return; const p = document.createElement('p'); p.textContent = 'Texte...'; target.appendChild(p); placeCaretAtEnd(p); handleOverflow(target); });
+      document.getElementById('btnList').addEventListener('click', ()=>{ const target = getActiveSheet(); if(!target) return; const ul = document.createElement('ul'); ['Point 1','Point 2'].forEach(t=>{ const li=document.createElement('li'); li.textContent=t; ul.appendChild(li); }); target.appendChild(ul); placeCaretAtEnd(ul.lastChild); handleOverflow(target); });
+      document.getElementById('btnAddPage').addEventListener('click', ()=>{ addNewPage(); });
+      document.getElementById('btnPrint').addEventListener('click', ()=>{ window.print(); });
+
+      // zoom controls
+  const zoomRange = document.getElementById('zoomRange'); function applyZoom(v){ document.querySelectorAll('.page').forEach(function(p){ p.style.transform = 'scale(' + (v/100) + ')'; }); }
+      document.getElementById('zoomIn').addEventListener('click', ()=>{ zoomRange.value = Math.min(120, Number(zoomRange.value)+10); applyZoom(zoomRange.value); });
+      document.getElementById('zoomOut').addEventListener('click', ()=>{ zoomRange.value = Math.max(30, Number(zoomRange.value)-10); applyZoom(zoomRange.value); });
+      document.getElementById('fitWidth').addEventListener('click', ()=>{ // compute scale to fit editorWrap width
+        const wrapW = editorWrap.clientWidth; const pageWmm = 210; // mm
+        // estimate px per mm using a temporary element
+        const el = document.createElement('div'); el.style.width='210mm'; el.style.position='absolute'; el.style.visibility='hidden'; document.body.appendChild(el); const pxPerMm = el.getBoundingClientRect().width / 210; document.body.removeChild(el);
+        const pagePx = 210 * pxPerMm; const scale = Math.min( (wrapW - 40) / pagePx * 100, 120); zoomRange.value = Math.round(scale); applyZoom(zoomRange.value);
+      });
+      zoomRange.addEventListener('input', ()=> applyZoom(zoomRange.value));
+
+      // utility: place caret at end of node
+      function placeCaretAtEnd(el){ el.focus(); if(typeof window.getSelection !== 'undefined' && typeof document.createRange !== 'undefined'){ const range = document.createRange(); range.selectNodeContents(el); range.collapse(false); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); } }
+
+      // automatic pagination: if sheet content overflows, move last block nodes to next page
+      function handleOverflow(sheet){ try{
+        const page = sheet.parentElement; const maxHeight = sheet.clientHeight; let nextPage = page.nextElementSibling;
+        // create next page if needed
+        while(sheet.scrollHeight > maxHeight){
+          if(!nextPage){ nextPage = addNewPage().nextElementSibling ? addNewPage() : addNewPage(); }
+          const nextSheet = nextPage.querySelector('.sheet');
+          // move last child nodes until fit
+          let moved = false;
+          while(sheet.scrollHeight > maxHeight && sheet.lastChild){
+            const node = sheet.lastChild;
+            // avoid moving the entire sheet if a single node is taller than page: break to prevent infinite loop
+            // move node to beginning of nextSheet
+            nextSheet.insertBefore(node, nextSheet.firstChild);
+            moved = true;
+          }
+          if(!moved) break; // nothing moved -> avoid infinite loop
+          // prepare for possibly cascading overflow on nextSheet
+          nextPage = nextPage.nextElementSibling;
+        }
+      }catch(e){ console.error('pagination error', e); } }
+
+      // initialize with content or blank A4 page
+      const initial = ${JSON.stringify((content||'').trim())};
+      function escapeHtmlForWindow(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\r/g,''); }
+      if(initial && initial.length){
+        const parts = initial.split(/\n\n+/).map(s=>s.replace(/\n/g,'<br/>'));
+        const firstHtml = parts.map(p=>'<p>'+escapeHtmlForWindow(p)+'</p>').join('');
+        addNewPage(firstHtml);
+      } else { addNewPage('<p></p>'); }
+
+      // apply initial zoom
+      applyZoom(Number(zoomRange.value));
+    <\/script>
+    </body></html>`;
+
+    w.document.open(); w.document.write(html); w.document.close();
+  }
+
+  // Click handler: open the card detail overlay and load the formation-specific PDF inside the overlay
+  document.addEventListener('click', function(e){
+    const v = e.target.closest('.view-toggle');
+    if(!v) return;
+    const card = v.closest('.formation-card');
+    if(!card) return;
+
+    // open detail overlay
+    card.classList.add('open');
+    const detail = card.querySelector('.detail'); if(detail) detail.setAttribute('aria-hidden', 'false');
+
+    // load PDF into the detail-pdf container
+    const pdfContainer = card.querySelector('.detail-pdf');
+    if(pdfContainer){
+      // show temporary loading text
+      pdfContainer.innerHTML = '<div class="pdf-loading text-sm text-gray-600">Chargement du PDF...</div>';
+      const pdfUrl = card.dataset.pdfUrl || card.getAttribute('data-pdf-url') || '';
+      if(pdfUrl){
+        // create iframe and insert with error handling
+        const iframe = document.createElement('iframe');
+        iframe.src = pdfUrl;
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        // handle success
+        iframe.onload = function(){
+          // hide upload UI if present
+          const uploadWrap = pdfContainer.querySelector('.pdf-upload-wrapper'); if(uploadWrap) uploadWrap.classList.add('hidden');
+        };
+        // handle load error (e.g., refused connection, not found, CORS, etc.)
+        iframe.onerror = function(){
+          // show upload fallback UI
+          pdfContainer.innerHTML = '';
+          const uploadWrap = card.querySelector('.pdf-upload-wrapper');
+          if(uploadWrap){ uploadWrap.classList.remove('hidden'); }
+        };
+        // replace loading with iframe
+        pdfContainer.innerHTML = '';
+        pdfContainer.appendChild(iframe);
+      } else {
+        pdfContainer.innerHTML = '<div class="pdf-placeholder text-sm text-gray-500">Aucun PDF disponible pour cette formation</div>';
+      }
+    }
+  });
+
+  // upload handlers for fallback upload UI (delegated)
+  document.addEventListener('click', function(e){
+    const uploadBtn = e.target.closest('.pdf-upload-btn');
+    if(uploadBtn){
+      const card = uploadBtn.closest('.formation-card'); if(!card) return;
+      const wrapper = card.querySelector('.pdf-upload-wrapper'); if(!wrapper) return;
+      const input = wrapper.querySelector('.pdf-upload-input'); if(!input || !input.files || !input.files.length){ wrapper.querySelector('.pdf-upload-status').textContent = 'Veuillez choisir un fichier PDF.'; return; }
+      const file = input.files[0];
+      // create FormData and send to formations_edit endpoint (reuse existing endpoint)
+      const fd = new FormData(); fd.append('id', card.dataset.id || card.getAttribute('data-id') || ''); fd.append('pdf', file);
+      wrapper.querySelector('.pdf-upload-status').textContent = 'Téléversement en cours...';
+      fetch('{% url "formations_edit" %}', { method: 'POST', headers: {'X-CSRFToken': csrftoken}, body: fd })
+        .then(r=> r.text().then(text=>{ if(!r.ok){ try{ const j=JSON.parse(text); throw new Error(j.error||text||'Erreur serveur'); }catch(z){ throw new Error(text||'Erreur serveur'); } } try{ return JSON.parse(text); }catch(z){ throw new Error('Invalid JSON response'); } }))
+        .then(json=>{
+          if(json.success){
+            wrapper.querySelector('.pdf-upload-status').textContent = 'Téléversement réussi. Chargement du PDF...';
+            // reload iframe with the PDF endpoint
+            const pdfUrl = card.dataset.pdfUrl || card.getAttribute('data-pdf-url') || `/formations/${card.dataset.id}/pdf/`;
+            const pdfContainer = card.querySelector('.detail-pdf'); if(!pdfContainer) return;
+            pdfContainer.innerHTML = '';
+            const iframe = document.createElement('iframe'); iframe.src = pdfUrl; iframe.style.width='100%'; iframe.style.height='100%'; iframe.style.border='none';
+            pdfContainer.appendChild(iframe);
+          } else { wrapper.querySelector('.pdf-upload-status').textContent = 'Erreur: '+(json.error||'Échec du téléversement'); }
+        }).catch(err=>{ wrapper.querySelector('.pdf-upload-status').textContent = 'Erreur: '+(err.message||'Erreur réseau'); });
+    }
+
+    const cancelBtn = e.target.closest('.pdf-upload-cancel');
+    if(cancelBtn){ const wrap = cancelBtn.closest('.pdf-upload-wrapper'); if(wrap) wrap.classList.add('hidden'); }
+  });
+
+  // Intercept Upload PDF links: open overlay and trigger file input instead of navigating away
+  document.addEventListener('click', function(e){
+    const up = e.target.closest('.upload-toggle');
+    if(!up) return;
+    e.preventDefault();
+    // find the card (closest .formation-card)
+    const card = up.closest('.formation-card');
+    if(card){
+      // open overlay
+      card.classList.add('open');
+      const detail = card.querySelector('.detail'); if(detail) detail.setAttribute('aria-hidden', 'false');
+      // find upload input inside overlay
+      const uploadInput = card.querySelector('.pdf-upload-input');
+      if(uploadInput){
+        // reveal wrapper if hidden
+        const wrap = card.querySelector('.pdf-upload-wrapper'); if(wrap) wrap.classList.remove('hidden');
+        // trigger file chooser
+        uploadInput.click();
+        return;
+      }
+    }
+    // fallback: open link in new tab
+    const href = up.getAttribute('href'); if(href) window.open(href, '_blank');
+  });
+
+  // Show uploaded PDF inline inside the card overlay when clicking 'Voir PDF'
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('.view-pdf-inline');
+    if(!btn) return;
+    const card = btn.closest('.formation-card'); if(!card) return;
+    e.preventDefault();
+    card.classList.add('open');
+    const detail = card.querySelector('.detail'); if(detail) detail.setAttribute('aria-hidden', 'false');
+    const pdfContainer = card.querySelector('.detail-pdf');
+    if(pdfContainer){
+      const pdfUrl = card.dataset.pdfUrl || card.getAttribute('data-pdf-url') || '';
+      if(pdfUrl){
+        pdfContainer.innerHTML = '';
+        const iframe = document.createElement('iframe'); iframe.src = pdfUrl; iframe.style.width='100%'; iframe.style.height='100%'; iframe.style.border='none';
+        pdfContainer.appendChild(iframe);
+        const uploadWrap = card.querySelector('.pdf-upload-wrapper'); if(uploadWrap) uploadWrap.classList.add('hidden');
+      }
+    }
+  });
+
+  // 3D tilt/hover effect: attach to a card element
+  function attachCard3DEffect(card){
+    if(!card) return;
+    let lastMove = 0;
+    function onMove(e){
+      const now = Date.now();
+      // throttle for performance
+      if(now - lastMove < 16) return; lastMove = now;
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width;
+      const py = (e.clientY - r.top) / r.height;
+      const ry = (px - 0.5) * 9; // rotateY range
+      const rx = (0.5 - py) * 6; // rotateX range
+      const base = card.classList.contains('open') ? 'translateY(-6px) scale(1.02)' : '';
+      // combine base transform (used by CSS) with tilt
+      card.style.transform = `${base} rotateX(${rx}deg) rotateY(${ry}deg)`;
+      card.style.transition = 'transform 80ms linear';
+    }
+    function onLeave(){
+      // reset transform so CSS hover/open rules take over
+      if(card.classList.contains('open')){
+        card.style.transform = 'translateY(-6px) scale(1.02)';
+      } else {
+        card.style.transform = '';
+      }
+      card.style.transition = 'transform .32s cubic-bezier(.2,.9,.2,1)';
+    }
+    card.addEventListener('mousemove', onMove);
+    card.addEventListener('mouseleave', onLeave);
+    // if the card is programmatically opened/closed, ensure transform reset
+    const obs = new MutationObserver(()=>{ if(!card.classList.contains('open')) card.style.transform = ''; });
+    obs.observe(card, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  // initialize 3D effect on current cards
+  document.querySelectorAll('.formation-card').forEach(attachCard3DEffect);
+
+  // close button inside detail overlay
+  document.addEventListener('click', function(e){
+    const closeBtn = e.target.closest('.detail-close-btn');
+    if(!closeBtn) return;
+    const card = closeBtn.closest('.formation-card'); if(!card) return;
+    card.classList.remove('open');
+    const detail = card.querySelector('.detail'); if(detail) detail.setAttribute('aria-hidden', 'true');
+    // clear any iframe/pdf loaded in the detail to free memory
+    const pdfContainer = card.querySelector('.detail-pdf'); if(pdfContainer) pdfContainer.innerHTML = '<div class="pdf-placeholder text-sm text-gray-500">Aperçu PDF non chargé</div>';
+    // reset any inline transform applied by 3D effect
+    card.style.transform = '';
+  });
+</script>
+
+{% endblock %}

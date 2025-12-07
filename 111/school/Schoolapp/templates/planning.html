@@ -1,0 +1,1869 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Planning - GénieSchool{% endblock %}
+{% block content %}
+<div class="prose mb-6">
+	<header class="flex items-center justify-between">
+		<div>
+			<h1 class="text-3xl font-bold">Planning &amp; Salles</h1>
+			<p class="text-sm text-gray-600">Nombre de sessions : <strong>{{ sessions }}</strong></p>
+
+	<!-- Floating salle manager icon (opens popup) -->
+	<div>
+		<button id="openSalleManagerBtn" aria-label="Gérer les salles" title="Gérer les salles" class="fixed right-6 bottom-6 z-50 w-12 h-12 rounded-full bg-emerald-600 text-white shadow-lg flex items-center justify-center transition-transform will-change-transform">
+			<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+				<rect x="3" y="3" width="8" height="8" rx="1"/>
+				<rect x="13" y="3" width="8" height="8" rx="1"/>
+				<rect x="3" y="13" width="8" height="8" rx="1"/>
+				<rect x="13" y="13" width="8" height="8" rx="1"/>
+			</svg>
+		</button>
+
+		<style>
+		/* Button styling improvements */
+		#openSalleManagerBtn{ box-shadow: 0 10px 30px rgba(16,185,129,0.12); }
+		#openSalleManagerBtn:focus{ outline: none; box-shadow: 0 0 0 6px rgba(16,185,129,0.12); }
+		#openSalleManagerBtn:hover{ transform: translateY(-4px) scale(1.06); }
+		#openSalleManagerBtn .icon{ stroke-width:1.6; }
+
+	/* Plain rows: no reveal animation */
+	.salle-row{ opacity:1; transform: none; transition: none; }
+
+		/* Salle manager animations */
+		.salle-manager-backdrop{ transition: opacity .22s ease; opacity:0; }
+		.salle-manager-backdrop.show{ opacity:1; }
+		.salle-manager-content{ transform: scale(.96) translate3d(0,0,0); opacity:0; transition: transform .32s cubic-bezier(.18,.9,.32,1), opacity .28s ease; will-change: transform, opacity; }
+		.salle-manager-content.open{ transform: scale(1) translate3d(0,0,0); opacity:1; }
+		.salle-pill{ transition: transform .12s ease, box-shadow .12s ease; }
+		.salle-pill:hover{ transform: translateY(-3px) scale(1.03); box-shadow: 0 6px 18px rgba(15,23,42,0.08); }
+		</style>
+
+		<!-- Salle Manager Popup -->
+		<div id="salleManagerModal" class="fixed inset-0 bg-black/40 hidden items-start justify-center pt-20 z-50 salle-manager-backdrop">
+			<div id="salleManagerContent" class="salle-manager-content bg-white w-full max-w-4xl rounded-2xl p-4 shadow-xl mx-4 max-h-[80vh] overflow-hidden border border-gray-100">
+				<div class="flex items-center justify-between mb-3">
+					<h3 class="text-lg font-semibold">Gestion des Salles</h3>
+					<div class="flex items-center gap-3">
+						<button id="refreshSalles" class="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200">Actualiser</button>
+						<button id="openAddSalle" class="px-4 py-2 rounded-xl bg-emerald-600 text-white shadow hover:brightness-105 transform transition-transform hover:-translate-y-0.5">Ajouter une salle</button>
+						<button id="closeSalleManager" class="ml-2 px-3 py-2 rounded bg-gray-100">Fermer</button>
+					</div>
+				</div>
+				<div class="overflow-auto border-t pt-3" style="max-height:calc(80vh - 120px)">
+					<table id="sallesTable" class="w-full text-sm rounded-lg overflow-hidden">
+						<thead class="bg-emerald-50 text-emerald-700 text-left sticky top-0">
+							<tr>
+								<th class="px-3 py-2">#</th>
+								<th class="px-3 py-2">Nom</th>
+								<th class="px-3 py-2">Capacité</th>
+								<th class="px-3 py-2">Équipements</th>
+								<th class="px-3 py-2">Actions</th>
+							</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Salle modal -->
+	<div id="salleModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4">
+		<div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl">
+			<div class="flex items-center justify-between mb-4">
+				<h2 id="salleModalTitle" class="text-lg font-semibold">Nouvelle salle</h2>
+				<button id="closeSalleModal" class="p-2 rounded-lg hover:bg-gray-100">&times;</button>
+			</div>
+			<form id="salleForm" class="space-y-3">
+				<input type="hidden" name="id" />
+				<div>
+					<label class="text-sm block mb-1">Nom</label>
+					<input name="nom" class="w-full border rounded-xl px-3 py-2" placeholder="Salle 101" required />
+				</div>
+				<div>
+					<label class="text-sm block mb-1">Capacité</label>
+					<input name="capacite" type="number" class="w-full border rounded-xl px-3 py-2" placeholder="30" />
+				</div>
+				<div>
+					<label class="text-sm block mb-1">Équipements (optionnel)</label>
+					<input name="equipements" class="w-full border rounded-xl px-3 py-2" placeholder="Projecteur, Tableau" />
+				</div>
+				<div class="flex justify-end gap-2 pt-2">
+					<button type="button" id="cancelSalle" class="px-4 py-2 rounded-xl bg-gray-200">Annuler</button>
+					<button type="submit" id="saveSalleBtn" class="px-4 py-2 rounded-xl bg-emerald-600 text-white">Enregistrer</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<!-- simple toast area -->
+	<div id="toastArea" class="fixed right-6 bottom-6 space-y-2 z-50"></div>
+		</div>
+		<div class="flex items-center gap-3">
+			<!-- Quick search: jour/date and salle availability -->
+			<div class="flex items-center gap-2 ml-4">
+				<label class="text-sm text-gray-600">Chercher jour</label>
+				<input id="searchDayInput" type="text" placeholder="2025-11-17 ou lundi" class="ml-2 border rounded px-2 py-1 text-sm" />
+				<button id="searchDayBtn" class="px-3 py-2 rounded bg-emerald-600 text-white">Rechercher</button>
+			</div>
+			<div class="flex items-center gap-2 ml-4">
+				<label class="text-sm text-gray-600">Salle</label>
+				<input id="searchRoomInput" type="text" placeholder="Nom de la salle" class="ml-2 border rounded px-2 py-1 text-sm" />
+				<button id="searchRoomBtn" class="px-3 py-2 rounded bg-emerald-600 text-white">Vérifier</button>
+			</div>
+			<button id="prevWeek" class="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200">← Semaine</button>
+			<button id="todayBtn" class="px-3 py-2 rounded bg-white border">Aujourd'hui</button>
+			<button id="nextWeek" class="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200">Semaine →</button>
+
+			<!-- Quick week/date picker: choose a date to jump to its week -->
+			<div class="flex items-center gap-2 ml-4">
+				<label for="weekPicker" class="text-sm text-gray-600">Aller à la date</label>
+				<input id="weekPicker" type="date" class="ml-2 border rounded px-2 py-1 text-sm" />
+				<button id="goWeekBtn" class="px-3 py-2 rounded bg-emerald-600 text-white">Afficher</button>
+			</div>
+		</div>
+	</header>
+</div>
+
+<!-- Calendar container -->
+<main class="w-full p-0" style="padding-left:58px">
+	<div class="mb-3">
+		<div class="bg-white rounded-2xl p-4 shadow-sm">
+			<div class="flex items-center justify-between">
+				<h2 id="weekTitle" class="text-xl font-semibold">Semaine</h2>
+				<button id="openModalBtn" class="px-4 py-2 rounded-xl bg-black text-white shadow">Ajouter un événement</button>
+			</div>
+
+			<!-- En‑tête jours (pills) -->
+			<div class="grid mt-4" style="grid-template-columns: 120px repeat(7, 1fr)" id="daysHeader">
+				<div></div>
+				<div class="flex justify-center" data-day-index="0"></div>
+				<div class="flex justify-center" data-day-index="1"></div>
+				<div class="flex justify-center" data-day-index="2"></div>
+				<div class="flex justify-center" data-day-index="3"></div>
+				<div class="flex justify-center" data-day-index="4"></div>
+				<div class="flex justify-center" data-day-index="5"></div>
+				<div class="flex justify-center" data-day-index="6"></div>
+			</div>
+		</div>
+	</div>
+
+		<!-- Grille horaires + colonnes jours -->
+		<div class="grid mt-2 bg-white rounded-2xl shadow overflow-hidden" style="grid-template-columns: 120px repeat(7, 1fr)">
+		<!-- Colonne heures -->
+		<div class="relative border-r" id="hours-col">
+			<!-- heures, affichage dynamique -->
+			<div id="hours-inner" class="relative">
+				<template id="hourLabelTpl"></template>
+			</div>
+		</div>
+
+		<!-- Colonnes jours (7) -->
+		<div class="relative border-r bg-[#FCFDFF] day-col" id="day-0" data-day="0"></div>
+		<div class="relative border-r bg-[#FCFDFF] day-col" id="day-1" data-day="1"></div>
+		<div class="relative border-r bg-[#FCFDFF] day-col" id="day-2" data-day="2"></div>
+		<div class="relative border-r bg-[#FCFDFF] day-col" id="day-3" data-day="3"></div>
+		<div class="relative border-r bg-[#FCFDFF] day-col" id="day-4" data-day="4"></div>
+		<div class="relative border-r bg-[#FCFDFF] day-col" id="day-5" data-day="5"></div>
+		<div class="relative bg-[#FCFDFF] day-col" id="day-6" data-day="6"></div>
+	</div>
+</main>
+
+<!-- Modal ajout événement (statique, demo) -->
+<div id="modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4">
+	<div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl">
+		<div class="flex items-center justify-between mb-4">
+			<h2 class="text-lg font-semibold">Nouvel événement</h2>
+			<button id="closeModalBtn" class="p-2 rounded-lg hover:bg-gray-100">&times;</button>
+		</div>
+		<form id="eventForm" class="space-y-3">
+			<!-- titre retiré: le titre est généré automatiquement à partir des champs sélectionnés -->
+			<div>
+				<label class="text-sm block mb-1">Formation</label>
+				<select name="formation" class="w-full border rounded-xl px-3 py-2">
+					<option value="">Sélectionner...</option>
+					{% for f in formations %}
+						<option value="{{ f.id }}">{{ f.nom }}</option>
+					{% endfor %}
+				</select>
+			</div>
+			<div>
+				<label class="text-sm block mb-1">Groupe</label>
+				<select name="groupe" class="w-full border-b-2 border-gray-200 bg-transparent rounded-none px-3 py-2" disabled>
+					<option value="">Sélectionner une formation d'abord</option>
+				</select>
+			</div>
+			<div>
+				<label class="text-sm block mb-1">Formateur</label>
+				<select name="formateur" class="w-full border rounded-xl px-3 py-2">
+					<option value="">Sélectionner...</option>
+					{% for fo in formateurs %}
+						<option value="{{ fo.id }}">{{ fo }}</option>
+					{% endfor %}
+				</select>
+			</div>
+			<div>
+				<label class="text-sm block mb-1">Salle</label>
+				<!-- Modern pill-style salle selector -->
+				<input type="hidden" name="salle" value="" />
+				<div id="sallePills" class="flex flex-wrap gap-2">
+					{% for s in salles %}
+						<button type="button" class="salle-pill px-3 py-1 rounded-full border border-gray-200 text-sm" data-id="{{ s.id }}">{{ s.nom }}</button>
+					{% endfor %}
+				</div>
+			</div>
+			<!-- zone d'avertissement de conflit de salle -->
+			<div id="collisionWarning" class="hidden text-sm text-red-700 bg-red-100 p-2 rounded">Conflit : la salle sélectionnée est déjà réservée pour cette période.</div>
+			<!-- zone d'avertissement de conflit de groupe (distinct) -->
+			<div id="groupCollisionWarning" class="hidden text-sm text-red-700 bg-red-100 p-2 rounded mt-2">Conflit : ce groupe est déjà utilisé pour une autre formation à la même période.</div>
+			<!-- zone d'avertissement de conflit de formateur -->
+			<div id="formateurCollisionWarning" class="hidden text-sm text-red-700 bg-red-100 p-2 rounded mt-2">Conflit : ce formateur est déjà affecté à un autre événement à la même période.</div>
+			<div class="flex justify-center">
+				<div class="w-2/3">
+					<label class="text-sm block mb-1 text-center">Date</label>
+					<input type="date" name="date" required class="w-full border rounded-xl px-3 py-2"/>
+				</div>
+			</div>
+			<div class="grid grid-cols-2 gap-3">
+				<div>
+					<label class="text-sm block mb-1">Début</label>
+					<input type="time" name="start" required value="09:00" class="w-full border rounded-xl px-3 py-2"/>
+				</div>
+				<div>
+					<label class="text-sm block mb-1">Fin</label>
+					<input type="time" name="end" required value="10:00" class="w-full border rounded-xl px-3 py-2"/>
+				</div>
+			</div>
+
+				<!-- compact, animated multi-week repeat controls -->
+				<div class="mt-2">
+					<div class="flex items-center gap-3">
+						<label id="repeatToggleLabel" class="flex items-center gap-2 text-sm cursor-pointer select-none">
+							<div class="relative">
+								<input id="repeatCheckbox" type="checkbox" name="repeat" value="1" class="peer sr-only" />
+								<div class="w-9 h-5 rounded-full bg-gray-200 peer-checked:bg-emerald-500 transition-colors duration-200"></div>
+								<div class="absolute left-0 top-0 w-5 h-5 bg-white rounded-full shadow transform peer-checked:translate-x-4 transition-transform duration-200"></div>
+							</div>
+							<span class="text-sm">Répéter</span>
+						</label>
+						<div id="repeatControls" class="overflow-hidden transition-all duration-250 max-h-0 opacity-0">
+							<label class="text-xs block mb-1">Semaines</label>
+							<input id="repeatWeeksInput" type="number" name="repeat_weeks" min="0" value="0" class="w-20 border rounded-xl px-2 py-1 text-sm" />
+						</div>
+						<div id="repeatPreview" class="text-xs text-gray-600 ml-3 hidden"></div>
+					</div>
+				</div>
+			<div class="flex justify-end gap-2 pt-2">
+				<button type="button" id="cancelBtn" class="px-4 py-2 rounded-xl bg-gray-200">Annuler</button>
+				<button type="submit" class="px-4 py-2 rounded-xl bg-black text-white">Ajouter</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<!-- Confirmation modal (replaces window.confirm) -->
+<div id="confirmModal" class="hidden">
+	<div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+		<div class="bg-white rounded-2xl p-4 w-full max-w-md shadow-lg">
+			<div id="confirmMessage" class="text-sm text-gray-800">Confirmer ?</div>
+			<div class="flex justify-end gap-2 mt-3">
+				<button id="confirmNo" class="px-3 py-2 rounded bg-gray-100">Non</button>
+				<button id="confirmYes" class="px-3 py-2 rounded bg-black text-white">Oui</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	:root { --hour-height: 100px; }
+	/* small tweak so day columns scroll vertically on overflow */
+	.day-col { min-height: 0; }
+	/* fade-out for deletions */
+	.fade-out { opacity: 0; transform: translateY(-8px) scale(0.98); transition: opacity .25s ease, transform .25s ease; }
+
+	/* day pill styles -- uniform (no selection effect) */
+	.day-pill { min-width:86px; max-width:140px; padding:12px 16px; border-radius:14px; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow: 0 6px 18px rgba(15,23,42,0.06); border: 1px solid rgba(15,23,42,0.04); }
+	.day-pill .day-name { font-weight:600; font-size:0.95rem; }
+	.day-pill .day-date { font-size:0.85rem; color:rgba(31,41,55,0.65); font-weight:600; }
+	.day-pill--default { background-color:#f8fbff; color:rgba(17,24,39,0.95); }
+	
+	/* Mobile Responsive Styles */
+	@media (max-width: 640px) {
+		.prose {
+			padding: 1rem !important;
+		}
+		
+		header.flex {
+			flex-direction: column !important;
+			align-items: flex-start !important;
+			gap: 1rem !important;
+		}
+		
+		h1 {
+			font-size: 1.75rem !important;
+		}
+		
+		/* Controls */
+		.flex.items-center.gap-3 {
+			flex-direction: column !important;
+			align-items: stretch !important;
+			gap: 0.75rem !important;
+		}
+		
+		.flex.items-center.gap-2 {
+			width: 100% !important;
+		}
+		
+		input, select, button {
+			width: 100% !important;
+			padding: 12px 16px !important;
+			font-size: 16px !important; /* Prevent zoom on iOS */
+			border-radius: 12px !important;
+		}
+		
+		button {
+			justify-content: center !important;
+		}
+		
+		/* Calendar container */
+		main.w-full {
+			padding: 0 !important;
+			padding-left: 0 !important;
+		}
+		
+		/* Week title */
+		#weekTitle {
+			font-size: 1.25rem !important;
+			margin-bottom: 1rem !important;
+		}
+		
+		/* Days header - horizontal scroll on mobile */
+		#daysHeader {
+			display: flex !important;
+			overflow-x: auto !important;
+			-webkit-overflow-scrolling: touch !important;
+			scroll-snap-type: x mandatory !important;
+			padding: 0.5rem 0 !important;
+			margin-bottom: 0.5rem !important;
+		}
+		
+		#daysHeader > div {
+			flex: 0 0 80px !important;
+			scroll-snap-align: start !important;
+		}
+		
+		.day-pill {
+			min-width: 70px !important;
+			max-width: 70px !important;
+			padding: 10px 8px !important;
+		}
+		
+		.day-pill .day-name {
+			font-size: 0.85rem !important;
+		}
+		
+		.day-pill .day-date {
+			font-size: 0.75rem !important;
+		}
+		
+		/* Calendar grid - stack vertically on mobile */
+		.grid[style*="grid-template-columns: 120px repeat(7, 1fr)"] {
+			display: block !important;
+		}
+		
+		/* Hours column */
+		#hours-col {
+			display: none !important;
+		}
+		
+		/* Day columns - stack vertically */
+		.day-col {
+			width: 100% !important;
+			margin-bottom: 1.5rem !important;
+			border: 1px solid rgba(0,0,0,0.1) !important;
+			border-radius: 16px !important;
+			padding: 1rem !important;
+			background: linear-gradient(135deg, rgba(16,185,129,0.02), rgba(5,150,105,0.02)) !important;
+			min-height: 400px !important;
+		}
+		
+		.day-col::before {
+			content: attr(data-day-name);
+			display: block;
+			font-weight: 700;
+			font-size: 1.1rem;
+			margin-bottom: 1rem;
+			padding-bottom: 0.75rem;
+			border-bottom: 2px solid rgba(16,185,129,0.2);
+			color: #059669;
+		}
+		
+		/* Event cards in mobile */
+		.day-col > div[class*="absolute"] {
+			position: relative !important;
+			width: 100% !important;
+			left: 0 !important;
+			margin-bottom: 0.75rem !important;
+			border-radius: 12px !important;
+			padding: 1rem !important;
+			animation: eventSlideIn 0.3s ease-out backwards;
+		}
+		
+		@keyframes eventSlideIn {
+			from {
+				opacity: 0;
+				transform: translateY(10px);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+		
+		/* Floating button */
+		#openSalleManagerBtn {
+			width: 56px !important;
+			height: 56px !important;
+			bottom: 100px !important;
+			right: 1rem !important;
+		}
+		
+		/* Modals */
+		.modal > div,
+		#salleManagerContent,
+		#salleModal > div {
+			width: 100% !important;
+			max-width: 100% !important;
+			margin: 0 !important;
+			border-radius: 20px 20px 0 0 !important;
+			max-height: 90vh !important;
+			overflow-y: auto !important;
+		}
+		
+		.fixed.inset-0 {
+			align-items: flex-end !important;
+			padding: 0 !important;
+		}
+		
+		/* Form adjustments */
+		form.space-y-3 > div {
+			margin-bottom: 1rem !important;
+		}
+		
+		/* Touch feedback */
+		.day-col > div[class*="absolute"]:active {
+			transform: scale(0.98) !important;
+		}
+		
+		/* Add button */
+		#openModalBtn {
+			width: 100% !important;
+			padding: 14px 20px !important;
+			font-size: 15px !important;
+			border-radius: 12px !important;
+		}
+	}
+</style>
+
+<script src="{% static 'static/vendor/js/tailwind.js' %}"></script>
+<script>
+	// Configuration
+	const HOUR_HEIGHT = 110; // px per hour (larger cards so time displays fully)
+	const DAY_START = 8;
+	// Show the grid up to 00:00 (midnight). Use 24 as the end hour and render a 00:00 label.
+	const DAY_END = 24;
+
+	// events (will be loaded from server API)
+	let events = [];
+	// local (unsynced) events created client-side so they appear immediately
+	let localEvents = [];
+	// color rotation for newly added events: amber (yellow), emerald (green), pink, blue
+	const colorCycle = ['amber','emerald','pink','blue'];
+	let colorIndex = 0;
+
+	// Fetch events for a week (weekStart is Date object at Sunday)
+
+// Build a deterministic color map for formations so each formation gets its own card color
+const _formationColorNames = ['blue','emerald','pink','amber','indigo','cyan','rose','lime','violet','teal'];
+const formationColorMap = (function(){
+	try{
+		const map = {};
+		let i = 0;
+		{% for f in formations %}
+			map["{{ f.id }}"] = _formationColorNames[i % _formationColorNames.length];
+			// also map by name fallback
+			map["{{ f.nom|escapejs }}"] = _formationColorNames[i % _formationColorNames.length];
+			i++;
+		{% endfor %}
+		return map;
+	}catch(e){ return {}; }
+})();
+
+	function pad2(n){ return String(n).padStart(2,'0'); }
+	async function fetchEventsForWeek(weekStartDate){
+		// Build local YYYY-MM-DD to avoid timezone shifts from toISOString
+		const iso = `${weekStartDate.getFullYear()}-${pad2(weekStartDate.getMonth()+1)}-${pad2(weekStartDate.getDate())}`;
+		try{
+			const res = await fetch(`/api/planning/events/?week_start=${iso}`);
+			const json = await res.json();
+			if(json.success){
+				console.log('planning: server debug week_start', json.debug_week_start || json.week_start);
+				const evs = json.events || [];
+				// map server events to local format: day (0..6), start 'HH:MM', end 'HH:MM', title, color
+				const mapped = evs.map(s => {
+					const start = new Date(s.start);
+					const end = s.end ? new Date(s.end) : null;
+					// day index relative to weekStartDate
+						// compute day index relative to weekStartDate using UTC to avoid TZ shifts
+						const msPerDay = 24*3600*1000;
+						const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+						const weekUtc = Date.UTC(weekStartDate.getFullYear(), weekStartDate.getMonth(), weekStartDate.getDate());
+						const day = Math.floor((startUtc - weekUtc) / msPerDay);
+					const pad = n => String(n).padStart(2,'0');
+					const startHM = pad(start.getHours()) + ':' + pad(start.getMinutes());
+					const endHM = end ? (pad(end.getHours()) + ':' + pad(end.getMinutes())) : null;
+						const displayFormateur = s.display_formateur || s.formateur_name || s.formateur_nom || s.enseignant_name || s.teacher_name || s.formateur || s.teacher || s.instructor || '';
+						// determine formation key (prefer id when available)
+						let formationKey = s.formation_id || s.formation || s.formation_name || s.formation_nom || null;
+						// normalize to string for map lookup
+						if(formationKey !== null && formationKey !== undefined) formationKey = String(formationKey);
+						const assignedColor = formationKey && formationColorMap[formationKey] ? formationColorMap[formationKey] : (s.color || (s.type==='session' ? 'blue' : 'purple'));
+						return {
+								id: s.id,
+								day,
+								start: startHM,
+								end: endHM || startHM,
+								title: s.display_formation || s.title || s.titre || '',
+								color: assignedColor,
+								// keep original server-provided name fields for robust fallback
+								formation_raw: s.formation,
+								formation_name: s.formation_name || '',
+								formation: formationName(s.formation_name || s.formation || ''),
+								formateur_raw: s.formateur || s.organisateur || null,
+								formateur_name: s.formateur_name || s.display_formateur || '',
+								formateur: personName(displayFormateur),
+								display_formateur: displayFormateur,
+								formateur_id: s.formateur_id || (s.formateur && s.formateur.id) || s.organisateur_id || null,
+								salle: s.salle || null,
+								salle_name: s.salle_name || s.salle_nom || '',
+								// keep raw groupe field and a normalized groupe_name for robust fallback
+								groupe_raw: s.groupe || null,
+								groupe_name: s.groupe_name || s.groupe_nom || '',
+								groupe: (s.groupe_name || (s.groupe && (s.groupe.nom || s.groupe.name || s.groupe.code)) || (typeof s.groupe === 'string' || typeof s.groupe === 'number' ? s.groupe : '') || '')
+							};
+				});
+					console.log('planning: server events', evs);
+					console.log('planning: mapped events', mapped);
+					// merge local unsynced events for the same weekStart
+					// include human-readable labels (formation, formateur, salle) so local events render correctly
+					const localForWeek = localEvents.filter(le => le.weekStartIso === iso)
+						.map(le => ({
+							id: le.id || null,
+							day: le.day,
+							start: le.start,
+							end: le.end,
+							title: le.title,
+							color: le.color,
+							// prefer explicit label fields when available
+							formation: le.formation_label || le.formation || le.title || '',
+							formation_id: le.formation_id || null,
+							formateur: le.formateur_label || le.formateur || '',
+							formateur_id: le.formateur_id || null,
+							salle: le.salle || null,
+							salle_label: le.salle_label || null,
+							groupe: le.groupe || ''
+						}));
+					// build dedupe sets: by server id and by title|start|end|day
+					const serverIds = new Set(mapped.map(m => String(m.id)));
+					const serverKeys = new Set(mapped.map(m => `${(m.title||'').trim()}__${m.start}__${m.end}__${m.day}`));
+					// exclude any local events whose id is already present on the server
+					const filteredLocal = localForWeek.filter(l => {
+						if(l.id && serverIds.has(String(l.id))) return false;
+						return !serverKeys.has(`${(l.title||'').trim()}__${l.start}__${l.end}__${l.day}`);
+					});
+					const merged = mapped.concat(filteredLocal);
+					events = merged;
+					return merged;
+			}
+		}catch(err){
+			console.error('Failed to load events', err);
+		}
+		return [];
+	}
+
+	const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+
+// helper to build readable names from possible server payload shapes
+function personName(p){
+	if(!p) return '';
+	try{
+		if(typeof p === 'string') return p;
+		if(typeof p === 'number') return String(p); // id only
+		if(typeof p === 'object'){
+			if(p.prenom || p.nom) return ((p.prenom||'') + ' ' + (p.nom||'')).trim();
+			if(p.first_name || p.last_name) return ((p.first_name||'') + ' ' + (p.last_name||'')).trim();
+			if(p.display_name) return p.display_name;
+			if(p.name) return p.name;
+			if(p.nom) return p.nom;
+		}
+	}catch(e){}
+	return '';
+}
+
+function formationName(f){
+	if(!f) return '';
+	try{
+		if(typeof f === 'string') return f;
+		if(typeof f === 'number') return String(f);
+		if(typeof f === 'object'){
+			if(f.nom) return f.nom;
+			if(f.name) return f.name;
+			if(f.title) return f.title;
+		}
+	}catch(e){}
+	return '';
+}
+
+	function toMinutes(hhmm){ const [h,m]=hhmm.split(':').map(Number); return h*60+m; }
+
+	// helper: create event DOM element with computed style
+	function createEventElement(ev, layout){
+		// ev: {startMin,endMin,title,color}
+		const col = document.getElementById(`day-${ev.day}`);
+		const palette = {
+			/* Brighter, more saturated backgrounds so cards are clearly visible */
+			blue: ['bg-blue-300','border-blue-400'],
+			purple: ['bg-purple-300','border-purple-400'],
+			pink: ['bg-pink-300','border-pink-400'],
+			amber: ['bg-amber-300','border-amber-400'],
+			emerald: ['bg-emerald-300','border-emerald-400'],
+			indigo: ['bg-indigo-300','border-indigo-400'],
+			cyan: ['bg-cyan-300','border-cyan-400'],
+			rose: ['bg-rose-300','border-rose-400'],
+			lime: ['bg-lime-300','border-lime-400'],
+			violet: ['bg-violet-300','border-violet-400'],
+			teal: ['bg-teal-300','border-teal-400'],
+		};
+		const [bg,border] = palette[ev.color] || palette.blue;
+
+		// map color name -> badge classes (darker solid pill for visibility)
+		const badgeColorMap = {
+			blue: 'bg-blue-700 text-white',
+			purple: 'bg-purple-700 text-white',
+			pink: 'bg-pink-700 text-white',
+			amber: 'bg-amber-700 text-white',
+			emerald: 'bg-emerald-700 text-white',
+			indigo: 'bg-indigo-700 text-white',
+			cyan: 'bg-cyan-700 text-white',
+			rose: 'bg-rose-700 text-white',
+			lime: 'bg-lime-700 text-white',
+			violet: 'bg-violet-700 text-white',
+			teal: 'bg-teal-700 text-white'
+		};
+
+		const badgeClass = badgeColorMap[ev.color] || 'bg-gray-800 text-white';
+
+	const top = (ev.startMin - DAY_START*60) * (HOUR_HEIGHT/60);
+	const height = Math.max(100, (ev.endMin - ev.startMin) * (HOUR_HEIGHT/60));
+
+	const el = document.createElement('div');
+	// larger padding and stronger shadow for a card-like appearance
+	// use flex-col so title is top and time stays visible at bottom
+	// add hover animation classes
+	el.className = `absolute ${bg} ${border} border rounded-2xl shadow-md p-5 overflow-hidden flex flex-col justify-between transform transition-all duration-150 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg cursor-pointer`;
+	el.style.top = top + 'px';
+	el.style.height = height + 'px';
+		// left/width from layout (percent)
+		el.style.left = layout.left + '%';
+		el.style.width = layout.width + '%';
+		el.style.boxSizing = 'border-box';
+	// compact card: show formation, instructor and chrono
+		// debug: log event mapping so we can see which events lack names
+		try{ console.debug('renderEvent', { id: ev.id, formation: ev.formation, formateur: ev.formateur, groupe: ev.groupe, start: ev.start, end: ev.end, color: ev.color, layout }); }catch(e){}
+				// prefer explicit display labels if provided (localEvents include *_label fields)
+				const formationLabel = ev.formation_label || ev.formation_name || ev.formation || ev.title || '';
+				const instructor = ev.formateur_label || ev.formateur_name || ev.formateur || ev.display_formateur || ev.formateur_raw || '';
+				const salleLabel = ev.salle_label || ev.salle_name || ev.salle || '';
+				// prefer a readable group name when available; avoid showing 'undefined'
+				// robust fallback: prefer explicit groupe_name, then groupe string, then raw object
+				const groupeLabel = (ev.groupe_name || (typeof ev.groupe === 'string' ? ev.groupe : (ev.groupe && (ev.groupe.nom || ev.groupe.name || ev.groupe.code)) ) || ev.groupe_raw || '');
+				// show instructor and salle inline; group will be shown inline (underlined)
+				const secondLine = [instructor, salleLabel ? ('Salle: ' + salleLabel) : null].filter(Boolean).join(' · ');
+				// inline group element (styled like the badge but placed under the formation)
+				const groupInlineHtml = groupeLabel ? `<div class="mt-2 text-sm text-gray-800">Groupe : <span class="inline-block font-semibold px-2 py-0.5 rounded-full ${badgeClass}" style="border:1px solid rgba(255,255,255,0.12);">${groupeLabel}</span></div>` : '';
+				el.innerHTML = `
+							<div class="relative w-full">
+								<div class="flex flex-col">
+									<div class="text-lg font-semibold leading-tight break-words">${formationLabel}</div>
+									<div class="text-sm text-gray-700 mt-1">${secondLine}</div>
+									${groupInlineHtml}
+								</div>
+							</div>
+							<div class="text-sm text-gray-800 mt-3 font-mono font-semibold">${formatTime(ev.startMin)} – ${formatTime(ev.endMin)}</div>
+						`;
+		// store identifying attributes to support deletion
+		if(ev.id) el.dataset.eventId = ev.id;
+		// double-click to delete immediately (no confirmation) — single click opens the detail modal
+		el.addEventListener('dblclick', async (evclick)=>{
+			evclick.stopPropagation();
+			const id = el.dataset.eventId;
+			if(!id){
+				// local-only event: remove without confirmation
+				const key = `${(ev.title||'').trim()}__${ev.start}__${ev.end}__${ev.day}`;
+				const idx = localEvents.findIndex(l => `${(l.title||'').trim()}__${l.start}__${l.end}__${l.day}` === key);
+				if(idx!==-1) localEvents.splice(idx,1);
+				el.classList.add('fade-out');
+				setTimeout(()=> el.remove(), 260);
+				return;
+			}
+			try{
+				const resp = await fetch('/api/planning/events/delete/', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id: Number(id) })});
+				const j = await resp.json();
+				if(j.success){
+					const key = `${(ev.title||'').trim()}__${ev.start}__${ev.end}__${ev.day}`;
+					const idx = localEvents.findIndex(l => `${(l.title||'').trim()}__${l.start}__${l.end}__${l.day}` === key);
+					if(idx!==-1) localEvents.splice(idx,1);
+					el.classList.add('fade-out');
+					setTimeout(()=> el.remove(), 260);
+				} else {
+					alert('Erreur suppression: '+(j.error||'unknown'));
+				}
+			}catch(ex){
+				console.error(ex); alert('Erreur réseau lors de la suppression');
+			}
+		});
+
+		// single click: open colored detail modal
+		el.addEventListener('click', function(e){
+			e.stopPropagation();
+			showEventDetails(ev, el);
+		});
+
+		col.appendChild(el);
+
+		// Make event draggable so it can be moved to other day/time slots
+		try{
+			el.setAttribute('draggable','true');
+			el.addEventListener('dragstart', function(e){
+				e.dataTransfer.effectAllowed = 'move';
+				// store id and mouse offset so we can compute precise drop time
+				const rect = el.getBoundingClientRect();
+				const offsetY = (e.clientY - rect.top);
+				const payload = { id: el.dataset.eventId || null, offsetY: offsetY };
+				try{ e.dataTransfer.setData('text/plain', JSON.stringify(payload)); } catch(ex) { /* some browsers restrict setData in file drag contexts */ }
+				// subtle visual while dragging
+				el.style.opacity = '0.7';
+			});
+			el.addEventListener('dragend', function(e){ el.style.opacity = ''; removeDropIndicator(); });
+		}catch(e){ console.warn('drag init failed', e); }
+	}
+
+	function formatTime(mins){ const h = Math.floor(mins/60); const m = mins%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
+
+	// Given an array of events for a day (with startMin/endMin), compute columns to avoid overlap
+	// Returns a map event-> {left, width}
+	function layoutDay(eventsOfDay){
+		// sort by start then longer duration first
+		eventsOfDay.sort((a,b)=> a.startMin - b.startMin || b.endMin - a.endMin);
+		const layouts = new Map();
+
+		// Build conflict groups: sweep line
+		let groups = [];
+		for(const ev of eventsOfDay){
+			let placed = false;
+			for(const g of groups){
+				// if overlaps with group's range
+				if(ev.startMin < g.maxEnd){
+					g.events.push(ev);
+					g.maxEnd = Math.max(g.maxEnd, ev.endMin);
+					placed = true;
+					break;
+				}
+			}
+			if(!placed){
+				groups.push({events:[ev], maxEnd: ev.endMin});
+			}
+		}
+
+		// For each group, assign columns greedily
+		for(const g of groups){
+			const cols = []; // array of lastEnd per column
+			for(const ev of g.events){
+				// find first free column
+				let assigned = -1;
+				for(let i=0;i<cols.length;i++){
+					if(ev.startMin >= cols[i]){ assigned = i; break; }
+				}
+				if(assigned === -1){
+					assigned = cols.length;
+					cols.push(ev.endMin);
+				} else {
+					cols[assigned] = ev.endMin;
+				}
+				// compute layout for this event based on total cols in group (we'll adjust widths after loop)
+				layouts.set(ev, {colIndex: assigned, totalColsRef: cols});
+			}
+			// After assigning, determine total columns count
+			const total = cols.length;
+			// update map entries with final left/width
+			for(const ev of g.events){
+				const info = layouts.get(ev);
+				const gap = 2; // percent gap padding between columns
+				const fullWidth = 100 - 4; // leave 2% padding left and right in column container
+				const width = Math.max(8, (fullWidth - (total-1)*gap) / total);
+				const left = 2 + (info.colIndex * (width + gap));
+				layouts.set(ev, {left, width});
+			}
+		}
+
+		return layouts; // Map
+	}
+
+	// hours column build
+	function buildHours(){
+		const hoursContainer = document.getElementById('hours-inner');
+		hoursContainer.innerHTML = '';
+	// compute and set container height based on start/end (inclusive end so labels align)
+	const containerHeight = (DAY_END - DAY_START + 1) * HOUR_HEIGHT;
+		hoursContainer.style.height = containerHeight + 'px';
+		for(let h=DAY_START; h<=DAY_END; h++){
+			const row = document.createElement('div');
+			row.style.height = 'var(--hour-height)';
+			row.className = 'flex items-start justify-end pr-3 text-sm text-gray-600 relative';
+			const label = document.createElement('div');
+			// display 24:00 as 00:00 (midnight)
+			const displayH = (h === 24) ? '00' : ((h<10? '0':'')+h);
+			label.textContent = displayH + ':00';
+			// avoid negative top which can be clipped by rounded container; use small positive offset
+			label.className = 'absolute top-3 right-3 font-semibold';
+			row.appendChild(label);
+			hoursContainer.appendChild(row);
+		}
+		// also set each day column container height so events align
+		document.querySelectorAll('.day-col').forEach(c=> c.style.height = containerHeight + 'px');
+	}
+
+	// week state
+	let weekStart = startOfWeek(new Date()); // Sunday
+
+	function startOfWeek(d){ const date = new Date(d); const day = date.getDay(); date.setDate(date.getDate() - day); date.setHours(0,0,0,0); return date; }
+	function addDays(d, n){ const dd = new Date(d); dd.setDate(dd.getDate()+n); return dd; }
+	function formatDate(d){ return d.toLocaleDateString('fr-FR',{day:'2-digit', month:'short'}); }
+
+	async function renderWeek(){
+		// title range
+		const start = weekStart;
+		const end = addDays(start,6);
+		const weekTitle = document.getElementById('weekTitle');
+		weekTitle.textContent = `Semaine du ${formatDate(start)} — ${formatDate(end)}`;
+
+		// header days as pill cards (mark active day)
+		const today = startOfWeek(new Date()) === null ? null : new Date();
+		for(let i=0;i<7;i++){
+			const cell = document.querySelector(`[data-day-index="${i}"]`);
+			const d = addDays(start,i);
+			const dayName = dayNames[i];
+			const dateText = `${d.getDate()}/${d.getMonth()+1}`;
+			const isActive = (new Date().toDateString() === d.toDateString());
+			cell.innerHTML = `
+				<div class="day-pill ${isActive ? 'day-pill--active' : 'day-pill--inactive'}">
+					<div class="day-name">${dayName}</div>
+					<div class="day-date">${dateText}</div>
+				</div>
+			`;
+		}
+
+		// clear and render columns
+		document.querySelectorAll('.day-col').forEach(c=>{ c.innerHTML=''; delete c.dataset.prepared; });
+		buildHours();
+
+	// Load events for this week from server, then render
+	await fetchEventsForWeek(start);
+	console.log('planning: events after fetch', events);
+		for(let d=0; d<7; d++){
+				// compute start/end in minutes and normalize events that end after midnight
+				const evs = events.filter(e=> e.day===d ).map(e=> {
+					const sMin = toMinutes(e.start || '00:00');
+					let eMin = toMinutes(e.end || e.start || '00:00');
+					// If end is <= start, assume it passes midnight and add 24h so it renders past 23:59
+					if(eMin <= sMin) eMin += 24*60;
+					return { ...e, startMin: sMin, endMin: eMin };
+				});
+				if(evs.length===0) continue;
+			const layouts = layoutDay(evs);
+			for(const ev of evs){
+				const layout = layouts.get(ev) || {left:2, width:96};
+				createEventElement(ev, layout);
+			}
+		}
+	}
+
+
+	// DRAG & DROP: initialize day column drop handlers and visual indicator
+	function ensureDragDropHandlers(){
+		// avoid re-binding
+		document.querySelectorAll('.day-col').forEach(function(col){
+			if(col.dataset.dd === '1') return; col.dataset.dd = '1';
+
+			col.addEventListener('dragover', function(ev){
+				ev.preventDefault();
+				ev.dataTransfer.dropEffect = 'move';
+				// show indicator at mouse position
+				const rect = col.getBoundingClientRect();
+				const y = ev.clientY - rect.top;
+				showDropIndicator(col, y);
+			});
+
+			col.addEventListener('dragleave', function(ev){ removeDropIndicator(); });
+
+			col.addEventListener('drop', async function(ev){
+				ev.preventDefault(); removeDropIndicator();
+				let payload = null;
+				try{ payload = JSON.parse(ev.dataTransfer.getData('text/plain')); } catch(e){ /* ignore */ }
+				if(!payload || !payload.id){
+					console.warn('Dropped payload missing id', payload); return;
+				}
+				// compute new startMin from drop position
+				const rect = col.getBoundingClientRect();
+				const y = ev.clientY - rect.top - (payload.offsetY || 0);
+				// snap to nearest 15 minutes
+				const minutesPerPx = 60 / (HOUR_HEIGHT);
+				let minsFromTop = Math.round(y * minutesPerPx);
+				// clamp
+				if(minsFromTop < 0) minsFromTop = 0;
+				const newStartMin = DAY_START*60 + Math.max(0, minsFromTop);
+
+				// find the event in the local events array or events list to preserve duration
+				const evObj = events.find(e=> String(e.id) === String(payload.id)) || localEvents.find(e=> String(e.id) === String(payload.id));
+				if(!evObj){ console.warn('Event object not found locally for id', payload.id); return; }
+				const duration = (toMinutes(evObj.end || evObj.start) - toMinutes(evObj.start));
+				const newEndMin = newStartMin + duration;
+
+				// build ISO datetimes relative to weekStart
+				const dayIndex = Number(col.dataset.day);
+				const base = new Date(weekStart);
+				base.setDate(base.getDate() + dayIndex);
+				const newStartDate = new Date(base);
+				newStartDate.setHours(0,0,0,0);
+				newStartDate.setMinutes(newStartMin);
+				const newEndDate = new Date(base);
+				newEndDate.setHours(0,0,0,0);
+				newEndDate.setMinutes(newEndMin);
+
+				// post to edit endpoint to move event
+				try{
+					const resp = await fetch('/api/planning/events/edit/', {
+						method: 'POST', headers: {'Content-Type':'application/json'},
+						body: JSON.stringify({ id: Number(payload.id), start: newStartDate.toISOString(), end: newEndDate.toISOString() })
+					});
+					const j = await resp.json();
+					if(j && j.success){
+						// success: re-render week to reflect change
+						renderWeek();
+						showToast('Événement déplacé', 'success');
+					} else {
+						showToast('Erreur lors du déplacement', 'error');
+						console.warn('move failed', j);
+					}
+				}catch(ex){ console.error('move request failed', ex); showToast('Erreur réseau', 'error'); }
+			});
+		});
+	}
+
+	// small helper: show a subtle drop indicator line inside a column
+	let _dropIndicator = null;
+	function showDropIndicator(col, y){
+		if(!_dropIndicator){ _dropIndicator = document.createElement('div'); _dropIndicator.style.position='absolute'; _dropIndicator.style.left='6px'; _dropIndicator.style.right='6px'; _dropIndicator.style.height='3px'; _dropIndicator.style.background='rgba(6,95,70,0.9)'; _dropIndicator.style.borderRadius='4px'; _dropIndicator.style.zIndex='80'; document.body.appendChild(_dropIndicator); }
+		const rect = col.getBoundingClientRect();
+		_dropIndicator.style.top = (rect.top + y - 1) + 'px';
+		_dropIndicator.style.left = (rect.left + 6) + 'px';
+		_dropIndicator.style.width = (rect.width - 12) + 'px';
+		_dropIndicator.style.display = 'block';
+	}
+	function removeDropIndicator(){ if(_dropIndicator) _dropIndicator.style.display='none'; }
+
+
+	document.getElementById('prevWeek').addEventListener('click', ()=>{ weekStart = addDays(weekStart,-7); renderWeek().then(()=> ensureDragDropHandlers()).catch(console.error); });
+	document.getElementById('nextWeek').addEventListener('click', ()=>{ weekStart = addDays(weekStart,7); renderWeek().then(()=> ensureDragDropHandlers()).catch(console.error); });
+	document.getElementById('todayBtn').addEventListener('click', ()=>{ weekStart = startOfWeek(new Date()); renderWeek().then(()=> ensureDragDropHandlers()).catch(console.error); });
+
+// Week/date picker handlers: jump to the week that contains the selected date
+try{
+	const weekPicker = document.getElementById('weekPicker');
+	const goWeekBtn = document.getElementById('goWeekBtn');
+	if(weekPicker){
+		// default to today
+		weekPicker.value = new Date().toISOString().slice(0,10);
+	}
+	const jumpToSelected = ()=>{
+		try{
+			if(!weekPicker || !weekPicker.value) return;
+			const selected = new Date(weekPicker.value);
+			weekStart = startOfWeek(selected);
+			renderWeek().then(()=> ensureDragDropHandlers()).catch(console.error);
+		}catch(e){ console.error('jumpToSelected error', e); }
+	};
+	if(goWeekBtn) goWeekBtn.addEventListener('click', function(){ jumpToSelected(); });
+	if(weekPicker) weekPicker.addEventListener('change', function(){ jumpToSelected(); });
+}catch(e){ console.error('weekPicker init failed', e); }
+
+	// modal behaviour & form submit (client-only demo)
+	const modal = document.getElementById('modal');
+	const openModalBtn = document.getElementById('openModalBtn');
+	const closeModalBtn = document.getElementById('closeModalBtn');
+	const cancelBtn = document.getElementById('cancelBtn');
+	const eventForm = document.getElementById('eventForm');
+
+	function showModal(){ modal.classList.remove('hidden'); modal.classList.add('flex'); }
+	function hideModal(){ modal.classList.add('hidden'); modal.classList.remove('flex'); eventForm.reset(); }
+
+	openModalBtn.addEventListener('click', ()=> showModal());
+
+// Ensure opening the modal for a NEW event clears any leftover edit state
+openModalBtn.addEventListener('click', ()=>{
+	// remove hidden id input if present so we don't treat this as an edit
+	try{
+		const idInput = eventForm.querySelector('[name="id"]');
+		if(idInput){ idInput.remove(); }
+		// reset form values and submit button text
+		eventForm.reset();
+		const submit = eventForm.querySelector('button[type="submit"]'); if(submit) submit.textContent = 'Ajouter';
+	}catch(e){/* silent */}
+	showModal();
+});
+	closeModalBtn.addEventListener('click', ()=> hideModal());
+	cancelBtn.addEventListener('click', ()=> hideModal());
+
+	// helper: check for room/time overlap
+	function intervalsOverlap(aStart, aEnd, bStart, bEnd){
+		return (aStart < bEnd) && (bStart < aEnd);
+	}
+
+	function isoFromDateAndTime(dateStr, timeStr){
+		// dateStr: YYYY-MM-DD, timeStr: HH:MM
+		if(!dateStr || !timeStr) return null;
+		const [y,m,d] = dateStr.split('-').map(Number);
+		const [hh,mm] = timeStr.split(':').map(Number);
+		const dt = new Date(y, m-1, d, hh, mm, 0, 0);
+		return dt.toISOString();
+	}
+
+	function checkConflictForSelection(salle, startIso, endIso){
+		if(!salle || !startIso || !endIso) return false;
+		const startA = new Date(startIso).getTime();
+		const endA = new Date(endIso).getTime();
+		// current editing event id (if present) -- used to ignore the event itself when checking conflicts
+		const idField = document.querySelector('#eventForm [name="id"]');
+		const currentEditingId = idField ? String(idField.value) : null;
+		// check localEvents (we store ISO start/end when pushing)
+		for(const le of localEvents){
+				// ignore local event if it's the one being edited
+				if(currentEditingId && le.id && String(le.id) === currentEditingId) continue;
+				if(!le.salle) continue;
+				if(String(le.salle) !== String(salle)) continue;
+			const s = new Date(le.startIso).getTime();
+			const e = new Date(le.endIso).getTime();
+			if(intervalsOverlap(startA,endA,s,e)) return true;
+		}
+		// check server events if they include salle/date info
+		for(const ev of events){
+				// ignore the same event when editing
+				if(currentEditingId && ev.id && String(ev.id) === currentEditingId) continue;
+				if(!ev.salle) continue; // server must return salle for this check to work
+				if(String(ev.salle) !== String(salle)) continue;
+			// attempt to compute absolute start/end ISO for server event using weekStart and ev.day
+			if(typeof ev.day === 'number' && ev.start){
+				const base = new Date(weekStart);
+				base.setDate(base.getDate() + ev.day);
+				const [sh,sm] = ev.start.split(':').map(Number);
+				const es = new Date(base); es.setHours(sh, sm, 0, 0);
+				let ee = new Date(es);
+				if(ev.end){ const [eh,em] = ev.end.split(':').map(Number); ee.setHours(eh, em, 0, 0); }
+				const s = es.getTime();
+				const e = ee.getTime();
+				if(intervalsOverlap(startA,endA,s,e)) return true;
+			}
+		}
+		return false;
+	}
+
+	// check group overlap regardless of salle (different formations cannot use same groupe at same time)
+	function checkGroupConflictForSelection(groupe, startIso, endIso){
+		if(!groupe || !startIso || !endIso) return false;
+		const startA = new Date(startIso).getTime();
+		const endA = new Date(endIso).getTime();
+		const idField = document.querySelector('#eventForm [name="id"]');
+		const currentEditingId = idField ? String(idField.value) : null;
+		// local events
+		for(const le of localEvents){
+				if(currentEditingId && le.id && String(le.id) === currentEditingId) continue;
+				if(!le.groupe) continue;
+				if(String(le.groupe) !== String(groupe)) continue;
+			const s = new Date(le.startIso).getTime();
+			const e = new Date(le.endIso).getTime();
+			if(intervalsOverlap(startA,endA,s,e)) return true;
+		}
+		// server events if they include groupe
+		for(const ev of events){
+				if(currentEditingId && ev.id && String(ev.id) === currentEditingId) continue;
+				if(!ev.groupe) continue;
+				if(String(ev.groupe) !== String(groupe)) continue;
+			if(typeof ev.day === 'number' && ev.start){
+				const base = new Date(weekStart);
+				base.setDate(base.getDate() + ev.day);
+				const [sh,sm] = ev.start.split(':').map(Number);
+				const es = new Date(base); es.setHours(sh, sm, 0, 0);
+				let ee = new Date(es);
+				if(ev.end){ const [eh,em] = ev.end.split(':').map(Number); ee.setHours(eh, em, 0, 0); }
+				const s = es.getTime();
+				const e = ee.getTime();
+				if(intervalsOverlap(startA,endA,s,e)) return true;
+			}
+		}
+		return false;
+	}
+
+	// check if formateur is occupied at the given time
+	function checkFormateurConflictForSelection(formateurIdOrName, startIso, endIso){
+		if(!formateurIdOrName || !startIso || !endIso) return false;
+		const startA = new Date(startIso).getTime();
+		const endA = new Date(endIso).getTime();
+		const idField = document.querySelector('#eventForm [name="id"]');
+		const currentEditingId = idField ? String(idField.value) : null;
+
+		// derive both target id (if any) and target display name (if available)
+		let targetId = null;
+		let targetName = '';
+		try{
+			if(typeof formateurIdOrName === 'string'){
+				// if the form value is an id, try to read the selected option text for the human name
+				const sel = document.querySelector('#eventForm [name="formateur"]');
+				if(sel){
+					const opt = Array.from(sel.options).find(o=> String(o.value) === String(formateurIdOrName));
+					if(opt){ targetId = String(opt.value); targetName = opt.textContent.trim(); }
+				}
+				// fallback: keep the raw string (could be a name passed directly)
+				if(!targetName) targetName = personName(formateurIdOrName);
+				if(!targetId && /^\d+$/.test(String(formateurIdOrName))) targetId = String(formateurIdOrName);
+			} else if(typeof formateurIdOrName === 'number'){
+				targetId = String(formateurIdOrName);
+			} else {
+				targetName = personName(formateurIdOrName);
+			}
+		}catch(e){ console.error('checkFormateur: derive target failed', e); }
+
+		// local events: compare id if available, else compare names
+		for(const le of localEvents){
+			if(currentEditingId && le.id && String(le.id) === currentEditingId) continue;
+			const leId = le.formateur_id || (le.formateur && le.formateur.id) || null;
+			const leName = personName(le.formateur || le.formateur_name || le.formateur_label || '');
+			let matches = false;
+			if(targetId && leId && String(leId) === String(targetId)) matches = true;
+			if(!matches && targetName && leName && String(leName) === String(targetName)) matches = true;
+			if(!matches) continue;
+			if(!le.startIso || !le.endIso) continue;
+			const s = new Date(le.startIso).getTime();
+			const e = new Date(le.endIso).getTime();
+			if(intervalsOverlap(startA,endA,s,e)){
+				console.debug('formateur conflict: local event', {le, targetId, targetName});
+				return true;
+			}
+		}
+
+		// server events: same approach
+		for(const ev of events){
+			if(currentEditingId && ev.id && String(ev.id) === currentEditingId) continue;
+			const evId = ev.formateur_id || (ev.formateur && ev.formateur.id) || null;
+			const evName = personName(ev.formateur || ev.formateur_name || ev.display_formateur || '');
+			let matches = false;
+			if(targetId && evId && String(evId) === String(targetId)) matches = true;
+			if(!matches && targetName && evName && String(evName) === String(targetName)) matches = true;
+			if(!matches) continue;
+			if(typeof ev.day === 'number' && ev.start){
+				const base = new Date(weekStart);
+				base.setDate(base.getDate() + ev.day);
+				const [sh,sm] = ev.start.split(':').map(Number);
+				const es = new Date(base); es.setHours(sh, sm, 0, 0);
+				let ee = new Date(es);
+				if(ev.end){ const [eh,em] = ev.end.split(':').map(Number); ee.setHours(eh, em, 0, 0); }
+				const s = es.getTime(); const e = ee.getTime();
+				if(intervalsOverlap(startA,endA,s,e)){
+					console.debug('formateur conflict: server event', {ev, targetId, targetName});
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	// Mark salle pills red when they conflict with currently selected date/time
+	function markConflictingPills(){
+		try{
+			const pillsContainer = document.getElementById('sallePills');
+			if(!pillsContainer) return;
+			const date = eventForm.querySelector('[name="date"]').value;
+			const start = eventForm.querySelector('[name="start"]').value;
+			const end = eventForm.querySelector('[name="end"]').value;
+			const startIso = isoFromDateAndTime(date, start);
+			const endIso = isoFromDateAndTime(date, end);
+			pillsContainer.querySelectorAll('.salle-pill').forEach(p=>{
+				const sid = p.dataset.id;
+				// clear previous conflict visuals
+				p.classList.remove('bg-red-100','text-red-700','border-red-200','ring-2','ring-red-300');
+				if(!sid || !startIso || !endIso) return;
+				if(checkConflictForSelection(sid, startIso, endIso)){
+					// if currently selected, give a ring to indicate problematic selection
+					if(p.classList.contains('bg-emerald-600')){
+						p.classList.add('ring-2','ring-red-300');
+					} else {
+						p.classList.add('bg-red-100','text-red-700','border-red-200');
+					}
+				}
+			});
+		}catch(e){ console.error('markConflictingPills error', e); }
+	}
+
+	// show/hide collision warnings and toggle submit
+	const collisionWarningEl = document.getElementById('collisionWarning');
+	const groupCollisionWarningEl = document.getElementById('groupCollisionWarning');
+	const formateurCollisionWarningEl = document.getElementById('formateurCollisionWarning');
+	const submitBtn = eventForm.querySelector('button[type="submit"]');
+
+	// formation groups JSON injected by the view (parse safe escaped JSON string)
+	const formationGroups = (function(){ try{ return JSON.parse('{{ formation_groups_json|default:"{}"|escapejs }}'); }catch(e){return {}} })();
+	const formationSelectEl = eventForm.querySelector('[name="formation"]');
+	const groupeSelectEl = eventForm.querySelector('[name="groupe"]');
+	if(formationSelectEl && groupeSelectEl){
+		formationSelectEl.addEventListener('change', ()=>{
+			const fid = formationSelectEl.value;
+			groupeSelectEl.innerHTML = '';
+			if(!fid || !formationGroups[fid] || formationGroups[fid].length===0){
+				groupeSelectEl.disabled = true;
+				groupeSelectEl.insertAdjacentHTML('beforeend', '<option value="">Aucun groupe</option>');
+				return;
+			}
+			groupeSelectEl.disabled = false;
+			groupeSelectEl.insertAdjacentHTML('beforeend', '<option value="">Sélectionner...</option>');
+			formationGroups[fid].forEach(opt=>{
+				// Server provides groups as objects with keys such as id and nom.
+				// Use id for the option value and the human-readable name (nom) as the label.
+				const val = opt.id !== undefined ? opt.id : (opt.code !== undefined ? opt.code : '');
+				const label = opt.nom || opt.name || opt.code || String(val);
+				const disabled = opt.disabled ? 'disabled' : '';
+				const suffix = opt.disabled ? ' (complet)' : '';
+				groupeSelectEl.insertAdjacentHTML('beforeend', `<option value="${val}" ${disabled}>${label}${suffix}</option>`);
+			});
+		});
+	}
+
+	function updateCollisionState(){
+		const formVals = new FormData(eventForm);
+		const salle = formVals.get('salle');
+		const date = formVals.get('date');
+		const start = formVals.get('start');
+		const end = formVals.get('end');
+		const startIso = isoFromDateAndTime(date, start);
+		const endIso = isoFromDateAndTime(date, end);
+		const conflict = checkConflictForSelection(salle, startIso, endIso);
+		const groupConflict = checkGroupConflictForSelection(formVals.get('groupe'), startIso, endIso);
+		const formateurConflict = checkFormateurConflictForSelection(formVals.get('formateur'), startIso, endIso);
+		// room conflict
+		if(conflict){
+			collisionWarningEl.classList.remove('hidden');
+		} else {
+			collisionWarningEl.classList.add('hidden');
+		}
+		// group conflict
+		if(groupConflict){
+			groupCollisionWarningEl.classList.remove('hidden');
+		} else {
+			groupCollisionWarningEl.classList.add('hidden');
+		}
+		// formateur conflict
+		if(formateurConflict){
+			formateurCollisionWarningEl.classList.remove('hidden');
+		} else {
+			formateurCollisionWarningEl.classList.add('hidden');
+		}
+		// disable submit if any conflict
+		if(conflict || groupConflict || formateurConflict){
+			submitBtn.disabled = true;
+			submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+		} else {
+			submitBtn.disabled = false;
+			submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+		}
+		// refresh salle pill visuals
+		markConflictingPills();
+	}
+
+	// attach listeners to relevant fields (including formateur so conflicts are rechecked when it changes)
+	['salle','date','start','end','groupe','formateur'].forEach(name=>{
+		const el = eventForm.querySelector(`[name="${name}"]`);
+		if(el) el.addEventListener('change', updateCollisionState);
+	});
+
+	eventForm.addEventListener('submit', async (e)=>{
+		e.preventDefault();
+		const form = new FormData(eventForm);
+		const formation = form.get('formation') || '';
+		const groupe = form.get('groupe') || '';
+		const formateur = form.get('formateur') || '';
+		const salle = form.get('salle') || '';
+		const date = form.get('date');
+		const startTime = form.get('start');
+		const endTime = form.get('end');
+
+		// build a readable title from selections
+	// Derive readable labels for title and payload
+	const formationSel = eventForm.querySelector('[name="formation"]');
+	let formationLabel = formationSel ? (formationSel.options[formationSel.selectedIndex]?.text || formation) : formation;
+	const groupeSel = eventForm.querySelector('[name="groupe"]');
+	let groupeLabel = groupeSel ? (groupeSel.options[groupeSel.selectedIndex]?.text || groupe) : groupe;
+		const titleParts = [];
+		if(formationLabel) titleParts.push(formationLabel);
+		if(groupeLabel) titleParts.push(groupeLabel);
+		if(formateur) titleParts.push(`(${formateur})`);
+		if(salle) titleParts.push(`- ${salle}`);
+		const title = titleParts.join(' ') || 'Session';
+
+		// compute ISO datetimes from date + time inputs
+		const startIso = isoFromDateAndTime(date, startTime);
+		const endIso = isoFromDateAndTime(date, endTime);
+		if(!startIso || !endIso){ alert('Veuillez renseigner la date et l\'heure de début/fin'); return; }
+
+		// re-check conflict before sending
+		const roomConflict = checkConflictForSelection(salle, startIso, endIso);
+		const groupConflict = checkGroupConflictForSelection(groupe, startIso, endIso);
+		const formateurConflict = checkFormateurConflictForSelection(formateur, startIso, endIso);
+		if(roomConflict || groupConflict || formateurConflict){
+			// refresh warnings/UI and prevent submission
+			updateCollisionState();
+			return; // prevented by warning
+		}
+
+		const color = colorCycle[colorIndex % colorCycle.length];
+		colorIndex++;
+
+	// derive readable labels from selects/pills to include in the payload
+	const formateurSel = eventForm.querySelector('[name="formateur"]');
+	let formateurLabel = formateurSel ? (formateurSel.options[formateurSel.selectedIndex]?.text || formateur) : formateur;
+	let salleLabel = '';
+		if(salle){ const pill = document.querySelector(`#sallePills .salle-pill[data-id="${salle}"]`); salleLabel = pill ? pill.textContent.trim() : String(salle); }
+
+		// send payload including name fields so server can persist human-readable labels
+		try{
+			// detect edit vs add depending on presence of hidden id field
+			const idField = eventForm.querySelector('[name="id"]');
+			const isEdit = idField && idField.value;
+				// include repeat fields (repeat checkbox + repeat_weeks number)
+				const repeatChecked = !!eventForm.querySelector('[name="repeat"]') && eventForm.querySelector('[name="repeat"]').checked;
+				const repeatWeeksVal = Number(eventForm.querySelector('[name="repeat_weeks"]')?.value || 0) || 0;
+				const payload = { title, start: startIso, end: endIso, color, formation, formation_name: formationLabel, groupe, groupe_name: groupeLabel, formateur, formateur_name: formateurLabel, salle, salle_name: salleLabel, repeat: repeatChecked, repeat_weeks: repeatWeeksVal };
+			if(isEdit) payload.id = idField.value;
+			const endpoint = isEdit ? '/api/planning/events/edit/' : '/api/planning/events/add/';
+				console.debug('planning: sending payload', payload);
+				// client validation: if repeat checked ensure repeat_weeks > 0
+				if(payload.repeat && (!payload.repeat_weeks || payload.repeat_weeks <= 0)){
+					alert('Si vous choisissez de répéter, indiquez le nombre de semaines (> 0)');
+					return;
+				}
+				const resp = await fetch(endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+			const json = await resp.json();
+			if(json.success){
+				// For both add and edit, refresh the week to reflect server state
+				hideModal();
+				renderWeek().catch(console.error);
+			} else {
+				alert('Erreur: '+(json.error||'unknown'));
+			}
+		}catch(err){
+			console.error(err); alert('Erreur lors de l\'envoi');
+		}
+	});
+
+	// init
+	(function init(){
+		document.documentElement.style.setProperty('--hour-height', HOUR_HEIGHT+'px');
+		renderWeek().catch(console.error);
+
+		// wire repeat toggle behaviour (show/hide number input with animation and update preview)
+		try{
+			const repeatCheckbox = document.getElementById('repeatCheckbox');
+			const repeatControls = document.getElementById('repeatControls');
+			const repeatWeeksInput = document.getElementById('repeatWeeksInput');
+			const repeatPreview = document.getElementById('repeatPreview');
+			function updateRepeatUI(){
+				if(!repeatCheckbox) return;
+				if(repeatCheckbox.checked){
+					repeatControls.style.maxHeight = '120px';
+					repeatControls.style.opacity = '1';
+					repeatControls.style.paddingLeft = '6px';
+					// compute preview dates
+					let w = Number(repeatWeeksInput?.value || 0);
+					if(w > 0){
+						const dateInput = eventForm.querySelector('[name="date"]');
+						if(dateInput && dateInput.value){
+							const base = new Date(dateInput.value);
+							const dates = [];
+							for(let i=1;i<=w;i++){
+								const d = new Date(base); d.setDate(d.getDate() + (7*i));
+								dates.push(`${d.getDate()}/${d.getMonth()+1}`);
+							}
+							repeatPreview.textContent = 'Dates: ' + dates.join(', ');
+							repeatPreview.classList.remove('hidden');
+						} else {
+							repeatPreview.textContent = '';
+							repeatPreview.classList.add('hidden');
+						}
+					} else {
+						repeatPreview.textContent = '';
+						repeatPreview.classList.add('hidden');
+					}
+				} else {
+					repeatControls.style.maxHeight = '0';
+					repeatControls.style.opacity = '0';
+					repeatPreview.textContent = '';
+					repeatPreview.classList.add('hidden');
+				}
+			}
+			repeatCheckbox?.addEventListener('change', updateRepeatUI);
+			repeatWeeksInput?.addEventListener('input', updateRepeatUI);
+			// initial state
+			setTimeout(updateRepeatUI, 40);
+		}catch(e){ console.error('repeat ui init failed', e); }
+	})();
+
+
+// --- Confirm modal helper ---
+const confirmModal = document.getElementById('confirmModal');
+const confirmMsg = document.getElementById('confirmMessage');
+const confirmYes = document.getElementById('confirmYes');
+const confirmNo = document.getElementById('confirmNo');
+function showConfirm(message){
+	return new Promise(resolve=>{
+		confirmMsg.textContent = message || 'Confirmer ?';
+		confirmModal.classList.remove('hidden');
+		function clean(){
+			confirmYes.removeEventListener('click', onYes);
+			confirmNo.removeEventListener('click', onNo);
+			confirmModal.classList.add('hidden');
+		}
+		function onYes(){ clean(); resolve(true); }
+		function onNo(){ clean(); resolve(false); }
+		confirmYes.addEventListener('click', onYes);
+		confirmNo.addEventListener('click', onNo);
+	});
+}
+
+</script>
+	async function fetchEventsForWeek(weekStartDate) {
+<!-- Event details modal (centered, colorful) -->
+<div id="eventDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+	<div id="eventDetailCard" class="w-full max-w-lg rounded-2xl p-6 shadow-2xl border border-gray-100" style="background:white;">
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex-1">
+				<div id="edFormation" class="text-2xl font-extrabold leading-tight"></div>
+				<div id="edFormateur" class="text-sm text-gray-600 mt-2"></div>
+				<div id="edChrono" class="text-sm text-gray-700 mt-4 font-mono"></div>
+				<div id="edExtras" class="mt-4 text-sm text-gray-700"></div>
+			</div>
+			<div class="flex flex-col items-end gap-3">
+				<button id="closeEventDetail" class="p-2 rounded-full hover:bg-gray-100">✕</button>
+				<button id="editEventBtn" class="px-4 py-2 rounded-xl bg-amber-600 text-white">Modifier</button>
+				<button id="deleteEventBtn" class="px-4 py-2 rounded-xl bg-red-600 text-white">Supprimer</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+
+	// --- Day search and room availability helpers ---
+function showEventDetails(ev, el){
+	try{
+		const modal = document.getElementById('eventDetailModal');
+		const card = document.getElementById('eventDetailCard');
+		const formation = document.getElementById('edFormation');
+		const formateur = document.getElementById('edFormateur');
+		const chrono = document.getElementById('edChrono');
+		const extras = document.getElementById('edExtras');
+
+		formation.textContent = ev.formation || ev.title || 'Événement';
+
+		formateur.textContent = ev.formateur ? ('Formateur: ' + ev.formateur) : '';
+		chrono.textContent = (ev.start && ev.end) ? (ev.start + ' – ' + ev.end) : (formatTime(ev.startMin) + ' – ' + formatTime(ev.endMin));
+		extras.innerHTML = `ID: <strong>${ev.id||'—'}</strong>${ev.groupe ? (' · Groupe: <strong>'+ev.groupe+'</strong>') : ''}`;
+
+		// color the card according to ev.color palette (stronger accents)
+		const paletteMap = {
+			blue: ['#eff6ff','#e0f2fe','#075985'],
+			emerald: ['#ecfdf5','#bbf7d0','#046c4e'],
+			pink: ['#fff1f2','#ffd6e0','#9b1237'],
+			amber: ['#fffbeb','#ffedd5','#92400e']
+		};
+		const p = paletteMap[ev.color] || paletteMap.blue;
+		card.style.background = `linear-gradient(135deg, ${p[0]} 0%, ${p[1]} 100%)`;
+		card.style.borderColor = p[2];
+		formation.style.color = p[2];
+
+		modal.classList.remove('hidden');
+
+		const closeBtn = document.getElementById('closeEventDetail');
+		closeBtn.onclick = function(){ modal.classList.add('hidden'); };
+
+		// wire delete button in modal: delete immediately without confirmation
+		const delBtn = document.getElementById('deleteEventBtn');
+		delBtn.onclick = async function(){
+			const id = ev.id;
+			if(!id) {
+				// nothing to delete on server, just close
+				try{ if(el && el.parentNode) el.classList.add('fade-out'); setTimeout(()=> el.remove(),260); }catch(e){}
+				modal.classList.add('hidden');
+				return;
+			}
+			try{
+				const resp = await fetch('/api/planning/events/delete/', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id: Number(id) })});
+				const j = await resp.json();
+				if(j.success){
+					try{ if(el && el.parentNode) el.classList.add('fade-out'); setTimeout(()=> el.remove(),260); }catch(e){}
+					modal.classList.add('hidden');
+				} else {
+					alert('Erreur suppression: '+(j.error||'unknown'));
+				}
+			}catch(ex){ console.error(ex); alert('Erreur réseau lors de la suppression'); }
+		};
+
+		// wire edit button: prefill the add/edit form and open the editor modal
+		const editBtn = document.getElementById('editEventBtn');
+		editBtn.onclick = function(){
+			try{
+				// Prefill form fields from event object
+				// formation
+				const formationSel = eventForm.querySelector('[name="formation"]');
+				if(formationSel){
+					let setByValue = false;
+					if(ev.formation_id){
+						const opt = Array.from(formationSel.options).find(o=> String(o.value) === String(ev.formation_id));
+						if(opt){ formationSel.value = opt.value; setByValue = true; formationSel.dispatchEvent(new Event('change')); }
+					}
+					if(!setByValue && ev.formation_name){
+						const opt = Array.from(formationSel.options).find(o=> o.text === ev.formation_name);
+						if(opt){ formationSel.value = opt.value; formationSel.dispatchEvent(new Event('change')); }
+					}
+				}
+				// wait a tick for groupe select to populate after formation change
+				setTimeout(()=>{
+					try{
+						const groupeSel = eventForm.querySelector('[name="groupe"]');
+						if(groupeSel){
+							let found = false;
+							for(const opt of Array.from(groupeSel.options)){
+								if(String(opt.value) === String(ev.groupe) || opt.text === ev.groupe_name || opt.text === ev.groupe){
+									groupeSel.value = opt.value; found = true; break;
+								}
+							}
+							if(!found){
+								const tmpVal = ev.groupe || ev.groupe_name || '';
+								const tmpOpt = document.createElement('option'); tmpOpt.value = tmpVal; tmpOpt.text = tmpVal; groupeSel.appendChild(tmpOpt); groupeSel.value = tmpVal;
+							}
+						}
+						// formateur
+						const formateurSel = eventForm.querySelector('[name="formateur"]');
+						if(formateurSel){
+							let foundF = false;
+							for(const opt of Array.from(formateurSel.options)){
+								if(String(opt.value) === String(ev.formateur_id) || opt.text === ev.formateur || opt.text === ev.formateur_name){ formateurSel.value = opt.value; foundF = true; break; }
+							}
+							if(!foundF && ev.formateur){ const tmp = document.createElement('option'); tmp.value = ev.formateur; tmp.text = ev.formateur; formateurSel.appendChild(tmp); formateurSel.value = ev.formateur; }
+						}
+						// salle
+						const salleInput = eventForm.querySelector('[name="salle"]');
+						if(salleInput){ salleInput.value = ev.salle || ''; document.querySelectorAll('#sallePills .salle-pill').forEach(p=> p.classList.remove('bg-emerald-600','text-white')); if(ev.salle){ const pill = document.querySelector(`#sallePills .salle-pill[data-id="${ev.salle}"]`); if(pill){ pill.classList.add('bg-emerald-600','text-white'); salleInput.value = pill.dataset.id; } } }
+						// date
+						const dateInput = eventForm.querySelector('[name="date"]');
+						if(dateInput && typeof ev.day === 'number'){
+							const dt = new Date(weekStart); dt.setDate(dt.getDate() + ev.day);
+							const y = dt.getFullYear(); const m = String(dt.getMonth()+1).padStart(2,'0'); const d = String(dt.getDate()).padStart(2,'0');
+							dateInput.value = `${y}-${m}-${d}`;
+						}
+						// times
+						const startInput = eventForm.querySelector('[name="start"]');
+						const endInput = eventForm.querySelector('[name="end"]');
+						if(startInput) startInput.value = ev.start || formatTime(ev.startMin);
+						if(endInput) endInput.value = ev.end || formatTime(ev.endMin);
+						// hidden id field
+						let idInput = eventForm.querySelector('[name="id"]');
+						if(!idInput){ idInput = document.createElement('input'); idInput.type = 'hidden'; idInput.name = 'id'; eventForm.appendChild(idInput); }
+						idInput.value = ev.id || '';
+						// change submit text
+						const submit = eventForm.querySelector('button[type="submit"]'); if(submit) submit.textContent = 'Enregistrer';
+						// open modal and close detail
+						document.getElementById('eventDetailModal').classList.add('hidden');
+						showModal();
+					}catch(e){ console.error('prefill edit error', e); showModal(); }
+				}, 80);
+			}catch(e){ console.error('edit click', e); showModal(); }
+		};
+	}catch(e){ console.error(e); }
+}
+</script>
+
+<script>
+// --- Salles CRUD script ---
+(function(){
+	const toastArea = document.getElementById('toastArea');
+	function showToast(msg, type='info', timeout=3000){
+		const el = document.createElement('div');
+		el.className = `px-4 py-2 rounded shadow-lg text-sm ${type==='error'? 'bg-red-100 text-red-800' : 'bg-white text-gray-800'}`;
+		el.textContent = msg;
+		toastArea.appendChild(el);
+		setTimeout(()=>{ el.classList.add('fade-out'); setTimeout(()=> el.remove(),250); }, timeout);
+	}
+
+	const sTable = document.querySelector('#sallesTable tbody');
+	const openAddBtn = document.getElementById('openAddSalle');
+	const salleModal = document.getElementById('salleModal');
+	const closeSalleModal = document.getElementById('closeSalleModal');
+	const cancelSalle = document.getElementById('cancelSalle');
+	const salleForm = document.getElementById('salleForm');
+	const salleTitle = document.getElementById('salleModalTitle');
+	const refreshBtn = document.getElementById('refreshSalles');
+
+	function openModal(){ salleModal.style.zIndex = 9999; salleModal.classList.remove('hidden'); salleModal.classList.add('flex'); }
+	function closeModal(){ salleModal.classList.add('hidden'); salleModal.classList.remove('flex'); salleForm.reset(); salleForm.querySelector('[name="id"]').value=''; salleModal.style.zIndex = ''; }
+
+	function buildRow(s){
+		const tr = document.createElement('tr');
+		tr.dataset.id = s.id;
+		tr.className = 'salle-row';
+		tr.innerHTML = `
+			<td class="px-3 py-2">${s.id}</td>
+			<td class="px-3 py-2">${escapeHtml(s.nom)}</td>
+			<td class="px-3 py-2">${s.capacite || ''}</td>
+			<td class="px-3 py-2">${escapeHtml(s.equipements || '')}</td>
+			<td class="px-3 py-2">
+				<button class="salle-edit px-2 py-1 mr-2 rounded border text-emerald-700" title="Modifier" aria-label="Modifier">
+					<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+				</button>
+				<button class="salle-delete delete-btn icon-btn px-2 py-1 rounded border text-red-600" title="Supprimer" aria-label="Supprimer">
+					<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"/></svg>
+				</button>
+			</td>
+		`;
+		return tr;
+	}
+
+	function escapeHtml(s){ return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+	async function loadSalles(){
+		try{
+			const res = await fetch('{% url "salle_list" %}');
+			const j = await res.json();
+			console.debug('salle_list response', j);
+			if(!j.success){ showToast('Impossible de charger les salles: '+(j.error||'unknown'),'error'); return; }
+			sTable.innerHTML='';
+			j.salles.forEach((s)=>{ const row = buildRow(s); row.classList.remove('revealed'); sTable.appendChild(row); });
+			attachRowEvents();
+			populateSallePills(j.salles);
+			// If manager is already open, reveal rows immediately (after small tick)
+			try{
+				const content = document.getElementById('salleManagerContent');
+				if(content && content.classList.contains('open')){
+					// no reveal animation; rows will display immediately
+					// (kept placeholder in case we later reintroduce stagger)
+				}
+			}catch(e){ console.error('reveal immediate failed', e); }
+		}catch(e){ console.error(e); showToast('Erreur réseau lors du chargement','error'); }
+	}
+
+	function attachRowEvents(){
+		if(!sTable){ showToast('Table des salles introuvable', 'error'); console.error('sTable is null'); return; }
+		// Use event delegation for robustness (handles clicks on SVGs etc.)
+		sTable.onclick = async function(ev){
+			const editBtn = ev.target.closest('button.salle-edit');
+			const delBtn = ev.target.closest('button.salle-delete');
+			if(editBtn){
+				const tr = editBtn.closest('tr');
+				if(!tr) return;
+				const id = tr.dataset.id;
+				const nom = tr.children[1]?.textContent || '';
+				const capacite = tr.children[2]?.textContent || '';
+				const equips = tr.children[3]?.textContent || '';
+				salleForm.querySelector('[name="id"]').value = id;
+				salleForm.querySelector('[name="nom"]').value = nom;
+				salleForm.querySelector('[name="capacite"]').value = capacite;
+				salleForm.querySelector('[name="equipements"]').value = equips;
+				salleTitle.textContent = 'Modifier la salle';
+				openModal();
+				return;
+			}
+			if(delBtn){
+				const tr = delBtn.closest('tr');
+				if(!tr) return;
+				const id = tr.dataset.id;
+				const ok = await showConfirm('Confirmer la suppression ?');
+				if(!ok) return;
+				tr.style.opacity = '0.5';
+				try{
+					const fd = new FormData(); fd.append('id', id);
+					const resp = await fetch('{% url "salle_delete" %}', { method:'POST', headers: {'X-CSRFToken': getCookie('csrftoken') }, body: fd, credentials:'same-origin' });
+					const j = await resp.json();
+					if(j.success){ tr.remove(); showToast('Supprimé'); loadSalles(); }
+					else { showToast('Erreur suppression: '+(j.error||'unknown'),'error'); tr.style.opacity='1'; }
+				}catch(e){ console.error(e); showToast('Erreur réseau','error'); tr.style.opacity='1'; }
+				return;
+			}
+		};
+	}
+
+	function getCookie(name){
+		const v = document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)');
+		return v ? v.pop() : '';
+	}
+
+	openAddBtn.addEventListener('click', ()=>{ salleTitle.textContent = 'Nouvelle salle'; openModal(); });
+	closeSalleModal.addEventListener('click', closeModal);
+	cancelSalle.addEventListener('click', closeModal);
+	refreshBtn.addEventListener('click', ()=> loadSalles());
+
+	// Manager open/close: animate from icon -> content and reveal rows staggered
+	const openManagerBtn = document.getElementById('openSalleManagerBtn');
+	const salleManagerModal = document.getElementById('salleManagerModal');
+	const closeSalleManager = document.getElementById('closeSalleManager');
+	const contentEl = document.getElementById('salleManagerContent');
+
+	openManagerBtn.addEventListener('click', ()=>{
+		const content = contentEl;
+		const modal = salleManagerModal;
+		modal.classList.remove('hidden'); modal.classList.add('flex','show');
+		content.classList.remove('open');
+		const iconRect = openManagerBtn.getBoundingClientRect();
+		const contentRect = content.getBoundingClientRect();
+		const dx = (iconRect.left + iconRect.width/2) - (contentRect.left + contentRect.width/2);
+		const dy = (iconRect.top + iconRect.height/2) - (contentRect.top + contentRect.height/2);
+		content.style.transform = `translate(${dx}px, ${dy}px) scale(0.12)`;
+		content.style.opacity = '0';
+		requestAnimationFrame(()=>{
+			requestAnimationFrame(()=>{
+				content.style.transition = 'transform .36s cubic-bezier(.18,.9,.32,1), opacity .28s ease';
+				content.style.transform = '';
+				content.style.opacity = '';
+				content.addEventListener('transitionend', function onOpen(){
+					content.classList.add('open');
+					content.removeEventListener('transitionend', onOpen);
+					const rows = Array.from(document.querySelectorAll('#sallesTable tbody tr.salle-row'));
+					rows.forEach((r,i)=>{ r.classList.remove('revealed'); r.style.transitionDelay = (i*45)+'ms'; });
+					setTimeout(()=> rows.forEach(r=> r.classList.add('revealed')), 40);
+				});
+			});
+		});
+		loadSalles();
+	});
+
+	closeSalleManager.addEventListener('click', ()=>{
+		const content = contentEl;
+		const modal = salleManagerModal;
+		const iconRect = openManagerBtn.getBoundingClientRect();
+		const contentRect = content.getBoundingClientRect();
+		const dx = (iconRect.left + iconRect.width/2) - (contentRect.left + contentRect.width/2);
+		const dy = (iconRect.top + iconRect.height/2) - (contentRect.top + contentRect.height/2);
+		content.style.transition = 'transform .32s cubic-bezier(.18,.9,.32,1), opacity .24s ease';
+		content.style.transform = `translate(${dx}px, ${dy}px) scale(0.12)`;
+		content.style.opacity = '0';
+		modal.classList.remove('show');
+		Array.from(document.querySelectorAll('#sallesTable tbody tr.salle-row')).forEach(r=>{ r.classList.remove('revealed'); r.style.transitionDelay = ''; });
+		const cleanup = ()=>{ modal.classList.add('hidden'); modal.classList.remove('flex'); content.style.transition = ''; content.style.transform=''; content.style.opacity=''; content.removeEventListener('transitionend', cleanup); };
+		content.addEventListener('transitionend', cleanup);
+		setTimeout(cleanup, 420);
+	});
+
+	salleForm.addEventListener('submit', async (e)=>{
+		e.preventDefault();
+		const fd = new FormData(salleForm);
+		const id = fd.get('id');
+		// optimistic UI: if creating, insert a temporary row
+		let tempTr = null;
+		if(!id){
+			tempTr = document.createElement('tr');
+			tempTr.className = 'salle-row';
+			tempTr.innerHTML = `<td class="px-3 py-2">…</td><td class="px-3 py-2">${escapeHtml(fd.get('nom')||'')}</td><td class="px-3 py-2">${escapeHtml(fd.get('capacite')||'')}</td><td class="px-3 py-2">${escapeHtml(fd.get('equipements')||'')}</td><td class="px-3 py-2">…</td>`;
+			sTable.prepend(tempTr);
+		}
+		try{
+			const resp = await fetch('{% url "salle_upsert" %}', { method:'POST', headers: {'X-CSRFToken': getCookie('csrftoken') }, body: fd, credentials:'same-origin' });
+			const j = await resp.json();
+			if(j.success){
+				showToast('Salle enregistrée');
+				closeModal();
+				await loadSalles();
+			} else {
+				showToast('Erreur: '+(j.error||'unknown'),'error');
+				if(tempTr) tempTr.remove();
+			}
+		}catch(err){ console.error(err); showToast('Erreur réseau','error'); if(tempTr) tempTr.remove(); }
+	});
+
+	// Populate salle pills and update the hidden input used by the event form
+	function populateSallePills(salles){
+		// table-independent pill list (for the event modal)
+		const pillsContainer = document.getElementById('sallePills');
+		if(pillsContainer){
+			pillsContainer.innerHTML = '';
+			salles.forEach(s=>{
+				const b = document.createElement('button');
+				b.type = 'button';
+				// Default pill: neutral background (no explicit white) so selected state (emerald) is visually distinct
+				b.className = 'salle-pill px-3 py-1 rounded-full border border-gray-200 text-sm';
+				b.dataset.id = s.id;
+				b.textContent = s.nom || '';
+				b.addEventListener('click', ()=>{
+					// toggle selection
+					const hidden = document.querySelector('form#eventForm input[name="salle"]');
+					if(!hidden) return;
+					const currently = hidden.value;
+					if(String(currently) === String(s.id)){
+						// deselect
+						hidden.value = '';
+						b.classList.remove('bg-emerald-600','text-white');
+						// restore neutral border/background if conflict classes were applied previously
+						b.classList.remove('bg-red-100','text-red-700','border-red-200','ring-2','ring-red-300');
+					} else {
+						// select this pill and clear selection from others
+						pillsContainer.querySelectorAll('.salle-pill').forEach(p=> p.classList.remove('bg-emerald-600','text-white','ring-2','ring-red-300','bg-red-100','text-red-700','border-red-200'));
+						hidden.value = s.id;
+						b.classList.add('bg-emerald-600','text-white');
+					}
+					updateCollisionState();
+				});
+				pillsContainer.appendChild(b);
+			});
+			// after creating pills, if a salle is already selected in the form's hidden input, mark it as selected
+			try{
+				const hidden = document.querySelector('form#eventForm input[name="salle"]');
+				if(hidden && hidden.value){
+					const sel = pillsContainer.querySelector(`.salle-pill[data-id="${hidden.value}"]`);
+					if(sel){ sel.classList.add('bg-emerald-600','text-white'); sel.classList.remove('bg-red-100','text-red-700','border-red-200','ring-2','ring-red-300'); }
+				}
+			}catch(e){ console.error('mark selected pill error', e); }
+		}
+		// also update any select fallback (if present elsewhere)
+		const sel = document.querySelector('form#eventForm select[name="salle"]');
+		if(sel){
+			const current = sel.value;
+			sel.innerHTML = '<option value="">Sélectionner...</option>';
+			salles.forEach(s=>{ const opt = document.createElement('option'); opt.value = s.id; opt.textContent = s.nom; sel.appendChild(opt); });
+			if(current) sel.value = current;
+		}
+			// after rendering pills, mark conflicts based on any current date/time selection
+			try{ markConflictingPills(); }catch(e){}
+	}
+
+	// initial load
+	loadSalles();
+	// initial render of the week and attach drag/drop handlers
+	renderWeek().then(()=> ensureDragDropHandlers()).catch(console.error);
+})();
+</script>
+
+{% endblock %}
