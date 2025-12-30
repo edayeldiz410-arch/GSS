@@ -6648,6 +6648,7 @@ def api_charges_types(request):
             'abonnement': [
                 {'key': 'facture_electricite', 'label': "Facture d'électricité"},
                 {'key': 'facture_gaz', 'label': 'Facture Gaz'},
+                {'key': 'facture_eau', 'label': "Facture d'eau"},
                 {'key': 'facture_internet', 'label': 'Facture internet'},
                 {'key': 'facture_telephone', 'label': 'Facture téléphone'},
                 {'key': 'facture_TV', 'label': 'Facture TV'},
@@ -8856,6 +8857,7 @@ def api_charges_types(request):
             'abonnement': [
                 {'key': 'facture_electricite', 'label': "Facture d'électricité"},
                 {'key': 'facture_gaz', 'label': 'Facture Gaz'},
+                {'key': 'facture_eau', 'label': "Facture d'eau"},
                 {'key': 'facture_internet', 'label': 'Facture internet'},
                 {'key': 'facture_telephone', 'label': 'Facture téléphone'},
                 {'key': 'facture_TV', 'label': 'Facture TV'},
